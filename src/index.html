@@ -22,16 +22,32 @@
 
     var game = new Phaser.Game(config);
     let player = null;
+    let sprite = null;
     function preload ()
     {
         this.load.image('wormie', 'assets/images/wormie.png');
+        this.load.spritesheet('tiles', 'assets/ChestHoleTileset/tiles.png', {frameWidth:24,frameHeight: 24});
     }
 
     function create ()
     {
+        let map = this.make.tilemap({tileWidth: 24, tileHeight: 24, width: 32, height:24});
+        let tileset = map.addTilesetImage('tiles', 'tiles', 24, 24);
+        map.setLayer(0);
+        let layer = map.createBlankDynamicLayer('bgLayer', tileset, 0,0);
+
+        map.randomize(0, 0, map.width, map.height, [640, 640, 640, 640, 640, 640, 640, 640, 640, 641]);
+        
         player = this.physics.add.sprite(400, 300, 'wormie');
+        console.log(player);
+        player.smoothed = false;
+        player.scaleX = 2;
+        player.scaleY = 2;
+
         player.body.setGravity(0);
-        //this.add.image(400, 300, 'wormie');
+
+        sprite = this.add.tileSprite(200, 200, 24, 24, 'tiles', 802);
+
     }
 
     function update() {
