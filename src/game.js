@@ -11,6 +11,7 @@ export default class GameScene extends Phaser.Scene {
         });
         this.player = null;
         this.map = null;
+        this.keys = {};
     }
     preload() {
 
@@ -33,7 +34,7 @@ export default class GameScene extends Phaser.Scene {
         let itemTileset = itemMap.addTilesetImage('tiles', 'tiles', 24, 24);
         itemMap.setLayer(1);
         let itemLayer = itemMap.createBlankDynamicLayer('items', itemTileset, 0,0);
-    
+        
         this.itemMap = itemMap;
 
         const sprite = this.physics.add.sprite(400, 300, 'wormie');
@@ -61,6 +62,8 @@ export default class GameScene extends Phaser.Scene {
         marker.lineStyle(2, 0x000000, 1);
         marker.strokeRect(0, 0, map.tileWidth * layer.scaleX, map.tileHeight * layer.scaleY);
         this.marker = marker;
+
+        this.keys.buildKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
 
         UI.create({game: this});
 
@@ -112,7 +115,14 @@ export default class GameScene extends Phaser.Scene {
             sprite.y = player.y;
             move = true;
         }
-        
+        if(this.keys.buildKey.isDown) {
+            if(player.inventory.length>0 && !map.getTileAt(pointerTileX, pointerTileY)) {
+                let item = player.inventory.shift();
+                let itemTile = new Phaser.Tilemaps.Tile(this.itemMap, item.tile, item.x, item.y);
+                itemTile.properties = item;
+                map.putTileAt(itemTile, pointerTileX, pointerTileY);
+            }
+        }
         if(!move) {
             sprite.setVelocity(0, 0);
         }
