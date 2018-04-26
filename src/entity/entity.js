@@ -4,6 +4,7 @@ export class Entity {
         this.y = args.y||0;
         this.z = args.z||0;
         this.name = args.name||'Unknown Entity';
+        this.tile = args.tile||0;
     }
 }
 
