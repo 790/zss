@@ -22,21 +22,22 @@ export default class GameScene extends Phaser.Scene {
         
         let tileset = map.addTilesetImage('tiles', 'tiles', 24, 24);
         
-
-        //map.setLayer(0);
+        map.setLayer(0);
         let backgroundLayer = map.createBlankDynamicLayer('background', tileset, 0,0);
         this.layers.background = backgroundLayer;
+        
         map.randomize(0, 0, map.width, map.height, [640, 640, 640, 640, 640, 640, 640, 640, 640, 641]);
         const player = new Player({
             x: 400, y: 300, name: 'wormie'
         });
         this.map = map;
         
-        //structureLayer.setCollisionByProperty({collides:true});
         let structureLayer = map.createBlankDynamicLayer('structures', tileset, 0, 0);
-        structureLayer.setCollisionBetween(3240, 3250);
+        structureLayer.setCollisionByProperty({collision:true});
+        structureLayer.setCollisionBetween(640, 3250);
+        structureLayer.fill(644, 0,0,map.width, map.height);
+        structureLayer.fill(null, 1, 1, map.width-2, map.height-2);
         this.impact.world.setCollisionMapFromTilemapLayer(structureLayer, { defaultCollidingSlope: 1 });
-
         console.log(structureLayer);
         this.layers.structure = structureLayer;
         
@@ -48,18 +49,24 @@ export default class GameScene extends Phaser.Scene {
         
         this.itemMap = itemMap;
 
-        const sprite = this.impact.add.sprite(400, 300, 'wormie', 1);
-        sprite.setMaxVelocity(300, 400);
+        const sprite = this.impact.add.sprite(400, 300, 'wormie');
+        sprite.setActive().setMaxVelocity(300, 300);
+        
+        
         this.player = player;
         player.sprite = sprite;
         console.log(player,"x");
         sprite.scaleX = 2;
         sprite.scaleY = 2;
-    
+        sprite.setBodyScale(2, 2);
+        this.cameras.main.setSize(800, 600);
+        this.cameras.main.startFollow(sprite);
+
+
         /* Add some random items */
         for(let i = 0; i < 4; i++) {
 
-            let item = new Item({name: 'Wood', tile: 3245, x: Phaser.Math.Between(0,24), y: Phaser.Math.Between(0,24)});
+            let item = new Item({name: 'Wood', tile: 3245, x: Phaser.Math.Between(1,22), y: Phaser.Math.Between(1,22)});
             console.log(item);
 
             let itemTile = new Phaser.Tilemaps.Tile(itemLayer, item.tile, item.x, item.y);
@@ -94,15 +101,18 @@ export default class GameScene extends Phaser.Scene {
         const pointerTileY = map.worldToTileY(worldPoint.y);
         
         const marker = this.marker;
-        if(map.getTileAt(pointerTileX, pointerTileY)) {
+        marker.x = map.tileToWorldX(pointerTileX);
+        marker.y = map.tileToWorldY(pointerTileY);
+
+        const proximity = Phaser.Math.Distance.Between(marker.x, marker.y, player.sprite.x, player.sprite.y) < 60;
+
+        if(map.getTileAt(pointerTileX, pointerTileY) && proximity) {
             marker.visible = true;
         } else {
             marker.visible = false;
         }
-        marker.x = map.tileToWorldX(pointerTileX);
-        marker.y = map.tileToWorldY(pointerTileY);
         
-        if (this.input.manager.activePointer.isDown) {
+        if (this.input.manager.activePointer.isDown && proximity) {
             let item = map.getTileAt(pointerTileX, pointerTileY);
             if(item) {
                 player.inventory.push(item.properties);
@@ -110,40 +120,29 @@ export default class GameScene extends Phaser.Scene {
             }
         }
 
-        let moveX = false;
-        let moveY = false;
         sprite.setVelocity(0,0);
         if (cursors.left.isDown || this.keys.leftKey.isDown) {
             sprite.setVelocityX(-100);
-            //player.x -= 1*player.speed;
-            //sprite.x = player.x;
-            moveX = true;
         }
         else if (cursors.right.isDown || this.keys.rightKey.isDown) {
             sprite.setVelocityX(100);
-            //player.x += 1*player.speed;
-            //sprite.x = player.x;
-            moveX = true;
         }
         if(cursors.up.isDown || this.keys.upKey.isDown) {
             sprite.setVelocityY(-100);
-            //player.y -= 1*player.speed;
-            //sprite.y = player.y;
-            moveY = true;
         } else if(cursors.down.isDown || this.keys.downKey.isDown) {
             sprite.setVelocityY(100);
-            //player.y += 1*player.speed;
-            //sprite.y = player.y;
-            moveY = true;
         }
         if(this.keys.buildKey.isDown) {
-            if(player.inventory.length>0 && !this.layers.structure.getTileAt(pointerTileX, pointerTileY)) {
-                let item = player.inventory.shift();
-                let itemTile = new Phaser.Tilemaps.Tile(this.itemMap, item.tile, item.x, item.y);
-                item.collision = 1;
-                itemTile.properties = item;
-                this.layers.structure.putTileAt(itemTile, pointerTileX, pointerTileY);
-                this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
+            if(player.inventory.length>0) {
+                let t = this.layers.structure.getTileAt(pointerTileX, pointerTileY);
+                if(!t || !t.canCollide) {
+                    let item = player.inventory.shift();
+                    let itemTile = new Phaser.Tilemaps.Tile(this.itemMap, item.tile, item.x, item.y);
+                    itemTile.properties = item;
+                    
+                    this.layers.structure.putTileAt(itemTile, pointerTileX, pointerTileY);
+                    this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
+                }
             }
         }
 

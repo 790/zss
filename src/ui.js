@@ -8,6 +8,10 @@ class UI {
         this.game = args.game;
         this.hpText = this.game.add.text(10, 10, 'HP: 0', { font: "20px Arial", fill: "#ffffff", align: "left" });
         this.inventoryText = this.game.add.text(10, 40, 'Inventory\n---------');
+        this.hpText.setScrollFactor(0,0);
+        this.inventoryText.fixedToCamera = true;
+        this.inventoryText.setScrollFactor(0,0);
+        console.log(this.hpText);
     }
     update(data) {
         if(data.player) {
