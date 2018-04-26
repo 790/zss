@@ -1,1 +1,3 @@
 # zss
+
+`npm run dev`
