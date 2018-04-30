@@ -62,7 +62,17 @@ module.exports = {
             { test: /\.js$/, use: ['babel-loader'], include: path.join(__dirname, 'src') },
             { test: /phaser-split\.js$/, use: ['expose-loader?Phaser'] },
             { test: [/\.vert$/, /\.frag$/], use: 'raw-loader' }
-        ]
+        ],
+/*	loaders: [
+	    {
+	      test: /\.jsx?$/,
+	      exclude: /node_modules/,
+	      loader: 'babel-loader',
+	      query: {
+	        presets:[ 'es2015', 'react', 'stage-2' ]
+	      }
+	}
+  ]*/
     },
     node: {
         fs: 'empty',

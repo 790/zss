@@ -4,7 +4,7 @@ import BootScene from './boot';
 import GameScene from './game';
 
 const config = {
-    type: Phaser.AUTO,
+    type: Phaser.CANVAS,
     width: 800,
     height: 600,
     physics: {

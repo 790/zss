@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 
 import {Player} from './entity/player';
 import UI from './ui';
-import { Item } from './entity/entity';
+import { Item, ItemResolver } from './entity/item';
 
 export default class GameScene extends Phaser.Scene {
     constructor(e) {
@@ -64,9 +64,9 @@ export default class GameScene extends Phaser.Scene {
 
 
         /* Add some random items */
-        for(let i = 0; i < 4; i++) {
+        for(let i = 0; i < 24; i++) {
 
-            let item = new Item({name: 'Wood', tile: 3245, x: Phaser.Math.Between(1,22), y: Phaser.Math.Between(1,22)});
+            let item = new Item({name: 'Wood', id: 'wood_plate', x: Phaser.Math.Between(1,22), y: Phaser.Math.Between(1,22)});
             console.log(item);
 
             let itemTile = new Phaser.Tilemaps.Tile(itemLayer, item.tile, item.x, item.y);
@@ -86,6 +86,7 @@ export default class GameScene extends Phaser.Scene {
         this.keys.downKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
         this.keys.leftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
         this.keys.rightKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+        this.keys.toggleInventory = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
         UI.create({game: this});
 
@@ -135,17 +136,25 @@ export default class GameScene extends Phaser.Scene {
         if(this.keys.buildKey.isDown) {
             if(player.inventory.length>0) {
                 let t = this.layers.structure.getTileAt(pointerTileX, pointerTileY);
+                
                 if(!t || !t.canCollide) {
-                    let item = player.inventory.shift();
-                    let itemTile = new Phaser.Tilemaps.Tile(this.itemMap, item.tile, item.x, item.y);
-                    itemTile.properties = item;
-                    
-                    this.layers.structure.putTileAt(itemTile, pointerTileX, pointerTileY);
-                    this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
+                    let item = player.inventory.remove('wood_plate', 2);
+                    if(item) {
+                        item.tile = ItemResolver('t_wall_log').fg;
+                        let itemTile = new Phaser.Tilemaps.Tile(this.itemMap, item.tile, item.x, item.y);
+                        itemTile.properties = item;
+                        
+                        this.layers.structure.putTileAt(itemTile, pointerTileX, pointerTileY);
+                        this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
+                    }
                 }
             }
         }
-
+        if(Phaser.Input.Keyboard.JustDown(this.keys.toggleInventory)) {
+            UI.setState({
+                inventoryOpen: !UI.uiState.inventoryOpen
+            })
+        }
         UI.update({player:player});
     }
 }
