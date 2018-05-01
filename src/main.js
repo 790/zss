@@ -8,7 +8,11 @@ const config = {
     width: 800,
     height: 600,
     physics: {
-        default: 'impact'
+        impact: {
+        },
+        arcade: {
+        
+        }
     },
     pixelArt: true,
     scene: [BootScene, GameScene]

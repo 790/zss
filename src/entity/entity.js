@@ -5,12 +5,14 @@ export class Entity {
         this.z = args.z||0;
         this.name = args.name||'Unknown Entity';
         this.tile = args.tile||0;
+        this.sprite = null;
     }
 }
 
 class Inventory {
     constructor(inv=null) {
         this.inventory = inv||[];
+        this.inventorySize = 4;
     }
     map(f) {
         return this.inventory.map(f);
@@ -44,6 +46,9 @@ class Inventory {
         }
         
     }
+    canAddToInventory(item) {
+        return this.inventory.length < this.inventorySize;
+    }
     toArray() {
         return [...this.inventory];
     }
@@ -59,6 +64,15 @@ export class LivingEntity extends Entity {
         this.maxHp = args.maxHp||100;
         this.speed = args.speed||1;
         this.inventory = new Inventory();
+
+        this.lastTick = 0;
+    }
+    update(time, delta) {
+        //if(time > this.lastTick+1000) {
+            this.sprite.setVelocity(Phaser.Math.Between(-100, 100), Phaser.Math.Between(-100, 100));
+            this.lastTick = time;
+        //}
+        
     }
 }
 

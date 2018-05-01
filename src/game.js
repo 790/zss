@@ -3,16 +3,26 @@ import Phaser from 'phaser';
 import {Player} from './entity/player';
 import UI from './ui';
 import { Item, ItemResolver } from './entity/item';
+import { LivingEntity } from './entity/entity';
 
 export default class GameScene extends Phaser.Scene {
     constructor(e) {
         super({
-            key: 'GameScene'
+            key: 'GameScene',
+            physics: {
+                impact: {},
+                arcade: {}
+            }
         });
         this.player = null;
         this.map = null;
         this.keys = {};
         this.layers = {};
+
+        this.entities = [];
+        this.entityUpdateTimer = null;
+
+        this.projectiles = [];
     }
     preload() {
 
@@ -50,7 +60,7 @@ export default class GameScene extends Phaser.Scene {
         this.itemMap = itemMap;
 
         const sprite = this.impact.add.sprite(400, 300, 'wormie');
-        sprite.setActive().setMaxVelocity(300, 300);
+        sprite.setActive().setMaxVelocity(300, 300).setActiveCollision(true);
         
         
         this.player = player;
@@ -75,7 +85,17 @@ export default class GameScene extends Phaser.Scene {
             itemMap.putTileAt(itemTile, item.x, item.y);
         }
         
-
+        /* Add some random enemies */
+        for(let i = 0; i < 1; i++) {
+            let enemy = new LivingEntity({
+                x: 100, y:100, name: 'enemy', tile: ItemResolver('mon_zombie_2').fg
+            });
+            let enemySprite = this.impact.add.sprite(enemy.x, enemy.y, 'tiles', enemy.tile);
+            enemySprite.setActive().setMaxVelocity(100, 100).setActiveCollision(true);
+            console.log(enemySprite);
+            enemy.sprite = enemySprite;
+            this.entities.push(enemy);
+        }
         const marker = this.add.graphics();
         marker.lineStyle(2, 0x000000, 1);
         marker.strokeRect(0, 0, map.tileWidth * backgroundLayer.scaleX, map.tileHeight * backgroundLayer.scaleY);
@@ -87,11 +107,31 @@ export default class GameScene extends Phaser.Scene {
         this.keys.leftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
         this.keys.rightKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
         this.keys.toggleInventory = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+        this.keys.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
 
         UI.create({game: this});
+    
+        let projectiles = this.physics.add.group({
+            defaultKey: 'bullet',
+            maxSize: 50,
+            collideWorldBounds: true,
+            enabledBody: true,
+            physicsBodyType: Phaser.Physics.ARCADE,
+
+        });
+        projectiles.enableBody = true;
+        projectiles.physicsBodyType = Phaser.Physics.ARCADE;
+    
+        //projectiles.createMultiple(50, 'tiles', ItemResolver('bullet_crossbow').fg);
+        
+    
+        this.projectiles = projectiles;
+        this.entityUpdateTimer = this.time.addEvent({ delay: 1000, callback: this.updateEntities, callbackScope: this, loop: true });
+        console.log(this);
 
     }
     update(time, delta) {
+        
         const cursors = this.input.keyboard.createCursorKeys();
         const player = this.player;
         const sprite = player.sprite;
@@ -115,7 +155,7 @@ export default class GameScene extends Phaser.Scene {
         
         if (this.input.manager.activePointer.isDown && proximity) {
             let item = map.getTileAt(pointerTileX, pointerTileY);
-            if(item) {
+            if(item && player.inventory.canAddToInventory(item)) {
                 player.inventory.push(item.properties);
                 map.removeTileAt(pointerTileX, pointerTileY);
             }
@@ -138,7 +178,7 @@ export default class GameScene extends Phaser.Scene {
                 let t = this.layers.structure.getTileAt(pointerTileX, pointerTileY);
                 
                 if(!t || !t.canCollide) {
-                    let item = player.inventory.remove('wood_plate', 2);
+                    let item = player.inventory.remove('wood_plate', 1);
                     if(item) {
                         item.tile = ItemResolver('t_wall_log').fg;
                         let itemTile = new Phaser.Tilemaps.Tile(this.itemMap, item.tile, item.x, item.y);
@@ -155,6 +195,18 @@ export default class GameScene extends Phaser.Scene {
                 inventoryOpen: !UI.uiState.inventoryOpen
             })
         }
+        if(Phaser.Input.Keyboard.JustDown(this.keys.fireKey)) {
+            let projectile = this.projectiles.get(player.sprite.x-8, player.sprite.y-8, 'tiles', ItemResolver('animation_bullet_normal').fg); //this.physics.add.image(player.sprite.x-8, player.sprite.y-8, 'tiles', ItemResolver('bullet_crossbow').fg);
+            
+            if(projectile) {
+                projectile.enableBody(true,player.sprite.x-8, player.sprite.y-8).setActive(true).setVisible(true);
+
+                this.physics.moveTo(projectile, this.input.x + this.cameras.main.scrollX, this.input.y + this.cameras.main.scrollY, 500);
+            }
+        }
         UI.update({player:player});
+    }
+    updateEntities(time, delta) {
+        this.entities.forEach(e => e.update(time, delta));
     }
 }
