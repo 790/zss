@@ -28,6 +28,9 @@ export default class GameScene extends Phaser.Scene {
 
     }
     create() {
+        this.physics.world.setBounds();
+        this.impact.world.setBounds();
+
         let map = this.make.tilemap({tileWidth: 24, tileHeight: 24, width: 32, height:24});
         
         let tileset = map.addTilesetImage('tiles', 'tiles', 24, 24);
@@ -71,7 +74,7 @@ export default class GameScene extends Phaser.Scene {
         sprite.setBodyScale(2, 2);
         this.cameras.main.setSize(800, 600);
         this.cameras.main.startFollow(sprite);
-
+        this.entityGroup = this.physics.add.group();
 
         /* Add some random items */
         for(let i = 0; i < 24; i++) {
@@ -90,11 +93,14 @@ export default class GameScene extends Phaser.Scene {
             let enemy = new LivingEntity({
                 x: 100, y:100, name: 'enemy', tile: ItemResolver('mon_zombie_2').fg
             });
-            let enemySprite = this.impact.add.sprite(enemy.x, enemy.y, 'tiles', enemy.tile);
-            enemySprite.setActive().setMaxVelocity(100, 100).setActiveCollision(true);
+            let enemySprite = this.physics.add.sprite(enemy.x, enemy.y, 'tiles', enemy.tile);
+            enemySprite.enableBody()
+            enemySprite.setActive().setMaxVelocity(100, 100);//.setActiveCollision(true);
+            enemySprite.setCollideWorldBounds(true);
             console.log(enemySprite);
             enemy.sprite = enemySprite;
             this.entities.push(enemy);
+            this.entityGroup.add(enemy.sprite);
         }
         const marker = this.add.graphics();
         marker.lineStyle(2, 0x000000, 1);
@@ -116,11 +122,11 @@ export default class GameScene extends Phaser.Scene {
             maxSize: 50,
             collideWorldBounds: true,
             enabledBody: true,
-            physicsBodyType: Phaser.Physics.ARCADE,
+            physicsBodyType: Phaser.Physics.IMPACT,
 
         });
-        projectiles.enableBody = true;
-        projectiles.physicsBodyType = Phaser.Physics.ARCADE;
+        //projectiles.enableBody = true;
+        //projectiles.physicsBodyType = Phaser.Physics.ARCADE;
     
         //projectiles.createMultiple(50, 'tiles', ItemResolver('bullet_crossbow').fg);
         
@@ -183,7 +189,6 @@ export default class GameScene extends Phaser.Scene {
                         item.tile = ItemResolver('t_wall_log').fg;
                         let itemTile = new Phaser.Tilemaps.Tile(this.itemMap, item.tile, item.x, item.y);
                         itemTile.properties = item;
-                        
                         this.layers.structure.putTileAt(itemTile, pointerTileX, pointerTileY);
                         this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
                     }
@@ -196,13 +201,33 @@ export default class GameScene extends Phaser.Scene {
             })
         }
         if(Phaser.Input.Keyboard.JustDown(this.keys.fireKey)) {
-            let projectile = this.projectiles.get(player.sprite.x-8, player.sprite.y-8, 'tiles', ItemResolver('animation_bullet_normal').fg); //this.physics.add.image(player.sprite.x-8, player.sprite.y-8, 'tiles', ItemResolver('bullet_crossbow').fg);
+            let projectile = this.projectiles.get(player.sprite.x, player.sprite.y, 'tiles', ItemResolver('animation_bullet_normal').fg); //this.physics.add.image(player.sprite.x-8, player.sprite.y-8, 'tiles', ItemResolver('bullet_crossbow').fg);
             
             if(projectile) {
-                projectile.enableBody(true,player.sprite.x-8, player.sprite.y-8).setActive(true).setVisible(true);
-
+                
+                projectile.enableBody(true,player.sprite.x, player.sprite.y).setActive(true).setVisible(true);
+                projectile.setCollideWorldBounds(true);
+                projectile.setCircle(4, 10, 10);
+                this.physics.add.collider(projectile, this.entityGroup, (a,b) => {
+                    console.log("collision entity", a,b);
+                    a.destroy();
+                });
+                this.physics.add.collider(projectile, this.layers.structure, (a,b) => {
+                    console.log("collision struct", a,b);
+                    a.destroy();
+                });
                 this.physics.moveTo(projectile, this.input.x + this.cameras.main.scrollX, this.input.y + this.cameras.main.scrollY, 500);
             }
+            /*let projectile = this.impact.add.sprite(player.sprite.x+32, player.sprite.y+32, 'tiles',  ItemResolver('animation_bullet_normal').fg);
+            if(projectile) {
+                projectile.collision = true;
+                projectile.setActive().setMaxVelocity(100, 100).setActiveCollision(true);
+                projectile.setCollideCallback((a,b) => {
+                    console.log("collides", a, b);
+
+                });
+            }
+            projectile.setActive().setVelocity(100,100);*/
         }
         UI.update({player:player});
     }
