@@ -109,6 +109,8 @@ export default class GameScene extends Phaser.Scene {
         marker.strokeRect(0, 0, map.tileWidth * backgroundLayer.scaleX, map.tileHeight * backgroundLayer.scaleY);
         this.marker = marker;
 
+        this.ghostBuilding = null;
+
         this.keys.buildKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
         this.keys.upKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
         this.keys.downKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
@@ -116,6 +118,7 @@ export default class GameScene extends Phaser.Scene {
         this.keys.rightKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
         this.keys.toggleInventory = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
         this.keys.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
+        this.keys.escapeKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
         UI.create({game: this});
     
@@ -127,16 +130,9 @@ export default class GameScene extends Phaser.Scene {
             physicsBodyType: Phaser.Physics.ARCADE,
 
         });
-        //projectiles.enableBody = true;
-        //projectiles.physicsBodyType = Phaser.Physics.ARCADE;
-    
-        //projectiles.createMultiple(50, 'tiles', ItemResolver('bullet_crossbow').fg);
-        
-    
+
         this.projectiles = projectiles;
         this.entityUpdateTimer = this.time.addEvent({ delay: 1000, callback: this.updateEntities, callbackScope: this, loop: true });
-        console.log(this);
-
     }
     update(time, delta) {
         
@@ -155,17 +151,30 @@ export default class GameScene extends Phaser.Scene {
 
         const proximity = Phaser.Math.Distance.Between(marker.x, marker.y, player.sprite.x, player.sprite.y) < 60;
 
-        if(map.getTileAt(pointerTileX, pointerTileY) && proximity) {
+        if((map.getTileAt(pointerTileX, pointerTileY) && proximity) || this.building) {
             marker.visible = true;
         } else {
             marker.visible = false;
         }
-        
+        if(this.building) {
+            this.ghostBuilding.x = marker.x;
+            this.ghostBuilding.y = marker.y;
+            if(this.player.inventory.length>0) {
+                this.marker.lineStyle(2, 0x000000, 1);
+                this.marker.strokeRect(0, 0, map.tileWidth * this.layers.background.scaleX, map.tileHeight * this.layers.background.scaleY);
+            }
+            else {
+                this.marker.lineStyle(2, 0x770000, 1);
+                this.marker.strokeRect(0, 0, map.tileWidth * this.layers.background.scaleX, map.tileHeight * this.layers.background.scaleY);
+            }
+        }
         if (this.input.manager.activePointer.isDown && proximity) {
             let item = map.getTileAt(pointerTileX, pointerTileY);
             if(item && player.inventory.canAddToInventory(item)) {
                 player.inventory.push(item.properties);
                 map.removeTileAt(pointerTileX, pointerTileY);
+            } else if(!item && this.building) {
+                this.buildItem(this.building, pointerTileX, pointerTileY);
             }
         }
 
@@ -181,21 +190,21 @@ export default class GameScene extends Phaser.Scene {
         } else if(cursors.down.isDown || this.keys.downKey.isDown) {
             sprite.setVelocityY(100);
         }
-        if(this.keys.buildKey.isDown) {
-            if(player.inventory.length>0) {
-                let t = this.layers.structure.getTileAt(pointerTileX, pointerTileY);
-                
-                if(!t || !t.canCollide) {
-                    let item = player.inventory.remove('wood_plate', 1);
-                    if(item) {
-                        item.tile = ItemResolver('t_wall_log').fg;
-                        let itemTile = new Phaser.Tilemaps.Tile(this.itemMap, item.tile, item.x, item.y);
-                        itemTile.properties = item;
-                        this.layers.structure.putTileAt(itemTile, pointerTileX, pointerTileY);
-                        this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
-                    }
-                }
+        if(Phaser.Input.Keyboard.JustDown(this.keys.buildKey)) {
+            if(!this.building) {
+                this.building = 't_wall_log';
+                this.ghostBuilding = this.add.image(this.marker.x, this.marker.y, 'tiles', ItemResolver(this.building).fg);
+                this.ghostBuilding.setOrigin(0, 0);
+                this.ghostBuilding.setAlpha(0.3);
+                this.ghostBuilding.x = this.marker.x;
+                this.ghostBuilding.y = this.marker.y;
+            } else {
+                this.stopBuilding();
             }
+            //this.buildItem('t_wall_log', pointerTileX, pointerTileY);
+        }
+        if(Phaser.Input.Keyboard.JustDown(this.keys.escapeKey)) {
+            this.stopBuilding();
         }
         if(Phaser.Input.Keyboard.JustDown(this.keys.toggleInventory)) {
             UI.setState({
@@ -227,6 +236,32 @@ export default class GameScene extends Phaser.Scene {
             }
         }
         UI.update({player:player});
+    }
+    buildItem(item_id, x, y) {
+        const player = this.player;
+        if(player.inventory.length>0) {
+            let t = this.layers.structure.getTileAt(x, y);
+            
+            if(!t || !t.canCollide) {
+                let item = player.inventory.remove('wood_plate', 1);
+                if(item) {
+                    item.tile = ItemResolver(item_id).fg;
+                    let itemTile = new Phaser.Tilemaps.Tile(this.itemMap, item.tile, item.x, item.y);
+                    itemTile.properties = item;
+                    this.layers.structure.putTileAt(itemTile, x, y);
+                    this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
+                }
+            }
+        }
+    }
+    stopBuilding() {
+        if(this.ghostBuilding) {
+            this.ghostBuilding.destroy();
+            this.ghostBuilding = null;
+        }
+        this.marker.lineStyle(2, 0x000000, 1);
+        this.marker.strokeRect(0, 0, this.itemMap.tileWidth * this.layers.background.scaleX, this.itemMap.tileHeight * this.layers.background.scaleY);
+        this.building = false; 
     }
     updateEntities(time, delta) {
         this.entities.forEach(e => e.update(time, delta));
