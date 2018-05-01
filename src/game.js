@@ -94,11 +94,13 @@ export default class GameScene extends Phaser.Scene {
                 x: 100, y:100, name: 'enemy', tile: ItemResolver('mon_zombie_2').fg
             });
             let enemySprite = this.physics.add.sprite(enemy.x, enemy.y, 'tiles', enemy.tile);
-            enemySprite.enableBody()
-            enemySprite.setActive().setMaxVelocity(100, 100);//.setActiveCollision(true);
+            enemySprite.enableBody(true, 100, 100)
+            enemySprite.setActive(true).setMaxVelocity(100, 100);//.setActiveCollision(true);
             enemySprite.setCollideWorldBounds(true);
+            this.physics.add.collider(enemySprite, this.layers.structure);
             console.log(enemySprite);
             enemy.sprite = enemySprite;
+            enemySprite.properties = enemy;
             this.entities.push(enemy);
             this.entityGroup.add(enemy.sprite);
         }
@@ -122,7 +124,7 @@ export default class GameScene extends Phaser.Scene {
             maxSize: 50,
             collideWorldBounds: true,
             enabledBody: true,
-            physicsBodyType: Phaser.Physics.IMPACT,
+            physicsBodyType: Phaser.Physics.ARCADE,
 
         });
         //projectiles.enableBody = true;
@@ -204,12 +206,17 @@ export default class GameScene extends Phaser.Scene {
             let projectile = this.projectiles.get(player.sprite.x, player.sprite.y, 'tiles', ItemResolver('animation_bullet_normal').fg); //this.physics.add.image(player.sprite.x-8, player.sprite.y-8, 'tiles', ItemResolver('bullet_crossbow').fg);
             
             if(projectile) {
-                
                 projectile.enableBody(true,player.sprite.x, player.sprite.y).setActive(true).setVisible(true);
                 projectile.setCollideWorldBounds(true);
                 projectile.setCircle(4, 10, 10);
                 this.physics.add.collider(projectile, this.entityGroup, (a,b) => {
                     console.log("collision entity", a,b);
+                    if(b.properties.hp <= 0) {
+                        this.entities.splice(this.entities.indexOf(b.properties), 1);
+                        b.destroy();
+                    } else {
+                        b.properties.hp -= 20;
+                    }
                     a.destroy();
                 });
                 this.physics.add.collider(projectile, this.layers.structure, (a,b) => {
@@ -218,16 +225,6 @@ export default class GameScene extends Phaser.Scene {
                 });
                 this.physics.moveTo(projectile, this.input.x + this.cameras.main.scrollX, this.input.y + this.cameras.main.scrollY, 500);
             }
-            /*let projectile = this.impact.add.sprite(player.sprite.x+32, player.sprite.y+32, 'tiles',  ItemResolver('animation_bullet_normal').fg);
-            if(projectile) {
-                projectile.collision = true;
-                projectile.setActive().setMaxVelocity(100, 100).setActiveCollision(true);
-                projectile.setCollideCallback((a,b) => {
-                    console.log("collides", a, b);
-
-                });
-            }
-            projectile.setActive().setVelocity(100,100);*/
         }
         UI.update({player:player});
     }

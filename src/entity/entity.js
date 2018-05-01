@@ -12,7 +12,7 @@ export class Entity {
 class Inventory {
     constructor(inv=null) {
         this.inventory = inv||[];
-        this.inventorySize = 4;
+        this.inventorySize = 8*8;
     }
     map(f) {
         return this.inventory.map(f);
