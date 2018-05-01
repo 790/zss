@@ -118,7 +118,11 @@ export default class GameScene extends Phaser.Scene {
         this.keys.rightKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
         this.keys.toggleInventory = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
         this.keys.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
-        this.keys.escapeKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+        this.keys.escapeKey = [
+            this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC),
+            this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q)
+        ];
+        this.keys.rotateKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
 
         UI.create({game: this});
     
@@ -192,24 +196,33 @@ export default class GameScene extends Phaser.Scene {
         }
         if(Phaser.Input.Keyboard.JustDown(this.keys.buildKey)) {
             if(!this.building) {
-                this.building = 't_wall_log';
-                this.ghostBuilding = this.add.image(this.marker.x, this.marker.y, 'tiles', ItemResolver(this.building).fg);
-                this.ghostBuilding.setOrigin(0, 0);
-                this.ghostBuilding.setAlpha(0.3);
-                this.ghostBuilding.x = this.marker.x;
-                this.ghostBuilding.y = this.marker.y;
+                this.startBuilding();
             } else {
                 this.stopBuilding();
             }
             //this.buildItem('t_wall_log', pointerTileX, pointerTileY);
         }
-        if(Phaser.Input.Keyboard.JustDown(this.keys.escapeKey)) {
-            this.stopBuilding();
-        }
+        this.keys.escapeKey.forEach(ek => {
+            if(Phaser.Input.Keyboard.JustDown(ek)) {
+                this.stopBuilding();
+            }
+        });
         if(Phaser.Input.Keyboard.JustDown(this.keys.toggleInventory)) {
             UI.setState({
                 inventoryOpen: !UI.uiState.inventoryOpen
             })
+        }
+        if(Phaser.Input.Keyboard.JustDown(this.keys.rotateKey)) {
+            let t = this.layers.structure.getTileAt(pointerTileX, pointerTileY);
+            
+            if(t.index) {
+                let r = Phaser.Math.RadToDeg(t.rotation);
+                r += 90;
+                if(r>=360) {
+                    r=0;
+                }
+                t.rotation = Phaser.Math.DegToRad(r);
+            }
         }
         if(Phaser.Input.Keyboard.JustDown(this.keys.fireKey)) {
             let projectile = this.projectiles.get(player.sprite.x, player.sprite.y, 'tiles', ItemResolver('animation_bullet_normal').fg); //this.physics.add.image(player.sprite.x-8, player.sprite.y-8, 'tiles', ItemResolver('bullet_crossbow').fg);
@@ -241,18 +254,47 @@ export default class GameScene extends Phaser.Scene {
         const player = this.player;
         if(player.inventory.length>0) {
             let t = this.layers.structure.getTileAt(x, y);
-            
+            let adjacent = this.layers.structure.getTilesWithin(x-1, y-1, 3, 3, {isNotEmpty: true,isColliding:true}).filter(t => t.x == x || t.y == y);
             if(!t || !t.canCollide) {
                 let item = player.inventory.remove('wood_plate', 1);
                 if(item) {
                     item.tile = ItemResolver(item_id).fg;
+                    if(adjacent.length === 3) {
+                        item.tile = 2248;
+                    }
+                    if(adjacent.length === 2 && ((adjacent[0].x === adjacent[1].x) || (adjacent[0].y === adjacent[1].y))) {
+                        // middle
+                        item.tile = 2242; // ItemResolver(item_id).additional_tiles
+                        if(adjacent[0].y === adjacent[1].y) {
+                            item.rotation = Phaser.Math.DegToRad(90);
+                        }
+                    } else if(adjacent.length === 2) {
+
+                        // corner
+                        item.tile = 2246; // ItemResolver(item_id).additional_tiles
+                    } else if(adjacent.length === 1) {
+                        // end
+                        
+                    }
                     let itemTile = new Phaser.Tilemaps.Tile(this.itemMap, item.tile, item.x, item.y);
+                    itemTile.angle = item.angle||0;
                     itemTile.properties = item;
                     this.layers.structure.putTileAt(itemTile, x, y);
                     this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
                 }
             }
         }
+    }
+    startBuilding() {
+        this.building = 't_wall_log';
+        this.ghostBuilding = this.add.image(this.marker.x, this.marker.y, 'tiles', ItemResolver(this.building).fg);
+        this.ghostBuilding.setOrigin(0, 0);
+        this.ghostBuilding.setAlpha(0.4);
+        this.ghostBuilding.x = this.marker.x;
+        this.ghostBuilding.y = this.marker.y;
+        UI.setState({
+            building: true
+        })
     }
     stopBuilding() {
         if(this.ghostBuilding) {
@@ -262,6 +304,9 @@ export default class GameScene extends Phaser.Scene {
         this.marker.lineStyle(2, 0x000000, 1);
         this.marker.strokeRect(0, 0, this.itemMap.tileWidth * this.layers.background.scaleX, this.itemMap.tileHeight * this.layers.background.scaleY);
         this.building = false; 
+        UI.setState({
+            building: false
+        })
     }
     updateEntities(time, delta) {
         this.entities.forEach(e => e.update(time, delta));

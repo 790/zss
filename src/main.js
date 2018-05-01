@@ -11,7 +11,7 @@ const config = {
         impact: {
         },
         arcade: {
-        debug: false
+            debug: false
         }
     },
     pixelArt: true,

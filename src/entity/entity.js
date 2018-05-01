@@ -25,6 +25,9 @@ class Inventory {
         inv.push(item);
         this.inventory = inv;
     }
+    has(item_id) {
+        return this.inventory.filter(i => i.id === item_id).length;
+    }
     remove(item, n=1) {
         if(n>1) {
             if(this.inventory.filter(i => i.id === item).length<n) {
@@ -68,11 +71,8 @@ export class LivingEntity extends Entity {
         this.lastTick = 0;
     }
     update(time, delta) {
-        //if(time > this.lastTick+1000) {
-            this.sprite.setVelocity(Phaser.Math.Between(-100, 100), Phaser.Math.Between(-100, 100));
-            this.lastTick = time;
-        //}
-        
+        this.sprite.setVelocity(Phaser.Math.Between(-100, 100), Phaser.Math.Between(-100, 100));
+        this.lastTick = time;
     }
 }
 

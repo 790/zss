@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { CLIENT_RENEG_LIMIT } from 'tls';
 
 class UI {
     constructor(args) {
@@ -14,7 +15,7 @@ class UI {
         this.hpText.setScrollFactor(0,0);
         this.inventoryText.fixedToCamera = true;
         this.inventoryText.setScrollFactor(0,0);
-        console.log(this.hpText);
+
 
         this.inventoryContainer = this.game.add.container(100, 100);
         this.inventoryContainer.fixedToCamera = true;
@@ -29,6 +30,11 @@ class UI {
         this.inventoryContainer.add(invBox);
         this.inventoryContainer.add(this.game.add.text(10, 10, 'Inventory'));
         this.inventoryContainer.add(itemBoxes);
+
+        this.buildingText = this.game.add.text(380, 400, 'Building', {align: 'center'});
+        this.buildingText.setScrollFactor(0,0);
+        
+
     }
     updateInventory(inv) {
         /* Updates the item sprites for the inventory display */
@@ -72,11 +78,14 @@ class UI {
         } else {
             this.inventoryContainer.visible = false;
         }
+        if(this.uiState.building) {
+            this.buildingText.visible = true;
+        } else {
+            this.buildingText.visible = false;
+        }
     }
     setState(args) {
-        console.log(args.inventoryOpen)
         this.uiState = {...this.uiState, ...args};
-        console.log(this.uiState);
     }
 }
 
