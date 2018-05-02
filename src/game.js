@@ -5,6 +5,9 @@ import UI from './ui';
 import { Item, ItemResolver } from './entity/item';
 import { LivingEntity } from './entity/entity';
 
+const TILE_WIDTH = 24;
+const TILE_HEIGHT = 24;
+
 export default class GameScene extends Phaser.Scene {
     constructor(e) {
         super({
@@ -79,7 +82,7 @@ export default class GameScene extends Phaser.Scene {
         /* Add some random items */
         for(let i = 0; i < 24; i++) {
 
-            let item = new Item({name: 'Wood', id: 'wood_plate', x: Phaser.Math.Between(1,22), y: Phaser.Math.Between(1,22)});
+            let item = new Item({name: 'Wood', id: '2x4', x: Phaser.Math.Between(1,22), y: Phaser.Math.Between(1,22)});
             console.log(item);
 
             let itemTile = new Phaser.Tilemaps.Tile(itemLayer, item.tile, item.x, item.y);
@@ -161,13 +164,15 @@ export default class GameScene extends Phaser.Scene {
             marker.visible = false;
         }
         if(this.building) {
-            this.ghostBuilding.x = marker.x;
-            this.ghostBuilding.y = marker.y;
+            this.ghostBuilding.x = marker.x + this.ghostBuilding.width / 2;
+            this.ghostBuilding.y = marker.y + this.ghostBuilding.height / 2;
             if(this.player.inventory.length>0) {
+                this.marker.clear();
                 this.marker.lineStyle(2, 0x000000, 1);
                 this.marker.strokeRect(0, 0, map.tileWidth * this.layers.background.scaleX, map.tileHeight * this.layers.background.scaleY);
             }
             else {
+                this.marker.clear();
                 this.marker.lineStyle(2, 0x770000, 1);
                 this.marker.strokeRect(0, 0, map.tileWidth * this.layers.background.scaleX, map.tileHeight * this.layers.background.scaleY);
             }
@@ -212,10 +217,20 @@ export default class GameScene extends Phaser.Scene {
                 inventoryOpen: !UI.uiState.inventoryOpen
             })
         }
+
+        /* Rotate building or ghost building */
         if(Phaser.Input.Keyboard.JustDown(this.keys.rotateKey)) {
-            let t = this.layers.structure.getTileAt(pointerTileX, pointerTileY);
-            
-            if(t.index) {
+            let t;
+            if(this.ghostBuilding) {
+                t = this.ghostBuilding;
+                console.log(t);
+            } else {
+                t = this.layers.structure.getTileAt(pointerTileX, pointerTileY);
+                if(!t.index) {
+                    t = null;
+                }
+            }
+            if(t) {
                 let r = Phaser.Math.RadToDeg(t.rotation);
                 r += 90;
                 if(r>=360) {
@@ -279,6 +294,9 @@ export default class GameScene extends Phaser.Scene {
                     let itemTile = new Phaser.Tilemaps.Tile(this.itemMap, item.tile, item.x, item.y);
                     itemTile.angle = item.angle||0;
                     itemTile.properties = item;
+                    if(this.ghostBuilding && this.ghostBuilding.rotation) {
+                        itemTile.rotation = this.ghostBuilding.rotation;
+                    }
                     this.layers.structure.putTileAt(itemTile, x, y);
                     this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
                 }
@@ -287,8 +305,10 @@ export default class GameScene extends Phaser.Scene {
     }
     startBuilding() {
         this.building = 't_wall_log';
-        this.ghostBuilding = this.add.image(this.marker.x, this.marker.y, 'tiles', ItemResolver(this.building).fg);
-        this.ghostBuilding.setOrigin(0, 0);
+        this.ghostBuilding = this.add.image(this.marker.x + this.marker.width / 2, this.marker.y + this.marker.height / 2, 'tiles', ItemResolver(this.building).fg);
+        this.ghostBuilding.setOrigin(0.5);
+        //this.ghostBuilding.setDisplayOrigin(0, 0);
+        
         this.ghostBuilding.setAlpha(0.4);
         this.ghostBuilding.x = this.marker.x;
         this.ghostBuilding.y = this.marker.y;
@@ -301,6 +321,7 @@ export default class GameScene extends Phaser.Scene {
             this.ghostBuilding.destroy();
             this.ghostBuilding = null;
         }
+        this.marker.clear();
         this.marker.lineStyle(2, 0x000000, 1);
         this.marker.strokeRect(0, 0, this.itemMap.tileWidth * this.layers.background.scaleX, this.itemMap.tileHeight * this.layers.background.scaleY);
         this.building = false; 
