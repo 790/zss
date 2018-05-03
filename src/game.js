@@ -5,6 +5,8 @@ import UI from './ui';
 import { Item, ItemResolver } from './entity/item';
 import { LivingEntity } from './entity/entity';
 
+import Network from './network';
+
 const TILE_WIDTH = 24;
 const TILE_HEIGHT = 24;
 
@@ -26,11 +28,51 @@ export default class GameScene extends Phaser.Scene {
         this.entityUpdateTimer = null;
 
         this.projectiles = [];
+
+        /* Network clients */
+        this.clients = {};
+        this.clientMap = {};
     }
     preload() {
 
     }
     create() {
+        Network.start().then(_ => {
+            console.log("connected2");
+            Network.socket.on('clientList', (data) => {
+                console.log("Client list", data);
+                data.forEach(client => {
+                    if(!client.me) {
+                        this.clients[client.id] = client;
+                        let sprite = this.physics.add.sprite(client.x, client.y, 'tiles', ItemResolver('mon_bandit_looter').fg);
+                        sprite.setActive().setMaxVelocity(300,300);
+                        this.clientMap[client.id] = sprite;
+                    }
+                })
+            }).on('clientConnected', (client) => {
+                console.log(client);
+                this.clients[client.id] = client;
+                let sprite = this.physics.add.sprite(client.x, client.y, 'tiles', ItemResolver('mon_bandit_looter').fg);
+                sprite.setActive().setMaxVelocity(300,300);
+                this.clientMap[client.id] = sprite;
+            }).on('clientDisconnected', (client) => {
+                if(this.clientMap[client.id]) {
+                    this.clientMap[client.id].destroy();
+                    delete this.clientMap[client.id];
+                    delete this.clients[client.id];
+                }
+            }).on('move', data => {
+                console.log("move", data);
+                if(data && data.player.id && this.clientMap[data.player.id]) {
+                    /*this.clientMap[data.player.id].setX(data.player.x);
+                    this.clientMap[data.player.id].setY(data.player.y);*/
+                    let player = this.clientMap[data.player.id];
+                    //this.physics.moveTo(player, data.player.x, data.player.y, 1000, 0);
+                    console.log(this.clientMap);
+                    player.setPosition(data.player.x, data.player.y);
+                }
+            });
+        });
         this.physics.world.setBounds();
         this.impact.world.setBounds();
 
@@ -157,6 +199,8 @@ export default class GameScene extends Phaser.Scene {
         marker.y = map.tileToWorldY(pointerTileY);
 
         const proximity = Phaser.Math.Distance.Between(marker.x, marker.y, player.sprite.x, player.sprite.y) < 60;
+        
+        let moved = false;
 
         if((map.getTileAt(pointerTileX, pointerTileY) && proximity) || this.building) {
             marker.visible = true;
@@ -190,14 +234,18 @@ export default class GameScene extends Phaser.Scene {
         sprite.setVelocity(0,0);
         if (cursors.left.isDown || this.keys.leftKey.isDown) {
             sprite.setVelocityX(-100);
+            moved = true;
         }
         else if (cursors.right.isDown || this.keys.rightKey.isDown) {
             sprite.setVelocityX(100);
+            moved = true;
         }
         if(cursors.up.isDown || this.keys.upKey.isDown) {
             sprite.setVelocityY(-100);
+            moved = true;
         } else if(cursors.down.isDown || this.keys.downKey.isDown) {
             sprite.setVelocityY(100);
+            moved = true;
         }
         if(Phaser.Input.Keyboard.JustDown(this.keys.buildKey)) {
             if(!this.building) {
@@ -263,6 +311,12 @@ export default class GameScene extends Phaser.Scene {
                 this.physics.moveTo(projectile, this.input.x + this.cameras.main.scrollX, this.input.y + this.cameras.main.scrollY, 500);
             }
         }
+        if(moved) {
+            Network.send('move', {player: {x: Math.round(player.sprite.x), y: Math.round(player.sprite.y)}});
+        }
+        Object.keys(this.clientMap).forEach(k => {
+            this.clientMap[k].update();
+        })
         UI.update({player:player});
     }
     buildItem(item_id, x, y) {
