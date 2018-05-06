@@ -56,57 +56,55 @@ export default class GameScene extends Phaser.Scene {
                 sprite.setActive().setMaxVelocity(300,300);
                 this.clientMap[client.id] = sprite;
             }).on('clientDisconnected', (client) => {
+                console.log(client.id, this.clientMap);
                 if(this.clientMap[client.id]) {
                     this.clientMap[client.id].destroy();
                     delete this.clientMap[client.id];
                     delete this.clients[client.id];
                 }
             }).on('move', data => {
-                console.log("move", data);
                 if(data && data.player.id && this.clientMap[data.player.id]) {
                     /*this.clientMap[data.player.id].setX(data.player.x);
                     this.clientMap[data.player.id].setY(data.player.y);*/
                     let player = this.clientMap[data.player.id];
                     //this.physics.moveTo(player, data.player.x, data.player.y, 1000, 0);
-                    console.log(this.clientMap);
                     player.setPosition(data.player.x, data.player.y);
                 }
+            }).on('setTile', data => {
+                console.log("net build", data);
+                let item = data.item;
+                if(!this.layers[data.layer]) {
+                    return;
+                }
+                if(item.tile === -1) {
+                    this.layers[data.layer].removeTileAt(item.x, item.y);
+                }
+                let itemTile = new Phaser.Tilemaps.Tile(this.layers[data.layer], item.tile, item.x, item.y);
+                itemTile.angle = item.angle||0;
+                itemTile.properties = item;
+                this.layers[data.layer].putTileAt(itemTile, data.x, data.y);
+                if(data.layer === 'structure') {
+                    this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
+                }
+            }).on('map', data => {
+                let map = data.map;
+                this.setMap(data.id, map.width, map.height, map);
+            }).on('inventory', data => {
+                if(data.type === 'push') {
+                    console.log(data);
+                    player.inventory.push(data.item);
+                }
+                
             });
         });
         this.physics.world.setBounds();
         this.impact.world.setBounds();
 
-        let map = this.make.tilemap({tileWidth: 24, tileHeight: 24, width: 32, height:24});
+        this.setupMap();
         
-        let tileset = map.addTilesetImage('tiles', 'tiles', 24, 24);
-        
-        map.setLayer(0);
-        let backgroundLayer = map.createBlankDynamicLayer('background', tileset, 0,0);
-        this.layers.background = backgroundLayer;
-        
-        map.randomize(0, 0, map.width, map.height, [640, 640, 640, 640, 640, 640, 640, 640, 640, 641]);
         const player = new Player({
             x: 400, y: 300, name: 'wormie'
         });
-        this.map = map;
-        
-        let structureLayer = map.createBlankDynamicLayer('structures', tileset, 0, 0);
-        structureLayer.setCollisionByProperty({collision:true});
-        structureLayer.setCollisionBetween(640, 3250);
-        structureLayer.fill(644, 0,0,map.width, map.height);
-        structureLayer.fill(null, 1, 1, map.width-2, map.height-2);
-        this.impact.world.setCollisionMapFromTilemapLayer(structureLayer, { defaultCollidingSlope: 1 });
-        console.log(structureLayer);
-        this.layers.structure = structureLayer;
-        
-        let itemMap = this.make.tilemap({tileWidth: 24, tileHeight: 24, width: 32, height:24});
-        
-        let itemTileset = itemMap.addTilesetImage('tiles', 'tiles', 24, 24);
-        itemMap.setLayer(2);
-        let itemLayer = itemMap.createBlankDynamicLayer('items', itemTileset, 0,0);
-        
-        this.itemMap = itemMap;
-
         const sprite = this.impact.add.sprite(400, 300, 'wormie');
         sprite.setActive().setMaxVelocity(300, 300).setActiveCollision(true);
         
@@ -120,18 +118,6 @@ export default class GameScene extends Phaser.Scene {
         this.cameras.main.setSize(800, 600);
         this.cameras.main.startFollow(sprite);
         this.entityGroup = this.physics.add.group();
-
-        /* Add some random items */
-        for(let i = 0; i < 24; i++) {
-
-            let item = new Item({name: 'Wood', id: '2x4', x: Phaser.Math.Between(1,22), y: Phaser.Math.Between(1,22)});
-            console.log(item);
-
-            let itemTile = new Phaser.Tilemaps.Tile(itemLayer, item.tile, item.x, item.y);
-            itemTile.properties = item;
-
-            itemMap.putTileAt(itemTile, item.x, item.y);
-        }
         
         /* Add some random enemies */
         for(let i = 0; i < 1; i++) {
@@ -151,7 +137,7 @@ export default class GameScene extends Phaser.Scene {
         }
         const marker = this.add.graphics();
         marker.lineStyle(2, 0x000000, 1);
-        marker.strokeRect(0, 0, map.tileWidth * backgroundLayer.scaleX, map.tileHeight * backgroundLayer.scaleY);
+        marker.strokeRect(0, 0, TILE_WIDTH * this.layers.background.scaleX, TILE_HEIGHT * this.layers.background.scaleY);
         this.marker = marker;
 
         this.ghostBuilding = null;
@@ -170,7 +156,7 @@ export default class GameScene extends Phaser.Scene {
         this.keys.rotateKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
 
         UI.create({game: this});
-    
+        UI.actionEmitter.on('build', this.onBuild);
         let projectiles = this.physics.add.group({
             defaultKey: 'bullet',
             maxSize: 50,
@@ -190,7 +176,7 @@ export default class GameScene extends Phaser.Scene {
         const sprite = player.sprite;
 
         const worldPoint = this.input.activePointer.positionToCamera(this.cameras.main);
-        const map = this.itemMap;
+        const map = this.layers.item;
         const pointerTileX = map.worldToTileX(worldPoint.x);
         const pointerTileY = map.worldToTileY(worldPoint.y);
         
@@ -224,8 +210,10 @@ export default class GameScene extends Phaser.Scene {
         if (this.input.manager.activePointer.isDown && proximity) {
             let item = map.getTileAt(pointerTileX, pointerTileY);
             if(item && player.inventory.canAddToInventory(item)) {
-                player.inventory.push(item.properties);
-                map.removeTileAt(pointerTileX, pointerTileY);
+                /*player.inventory.push(item.properties);
+                map.removeTileAt(pointerTileX, pointerTileY);*/
+                Network.send('pickup', {x: pointerTileX, y: pointerTileY});
+
             } else if(!item && this.building) {
                 this.buildItem(this.building, pointerTileX, pointerTileY);
             }
@@ -248,16 +236,26 @@ export default class GameScene extends Phaser.Scene {
             moved = true;
         }
         if(Phaser.Input.Keyboard.JustDown(this.keys.buildKey)) {
-            if(!this.building) {
-                this.startBuilding();
+            if(!UI.uiState.craftingOpen) {
+                UI.setState({
+                    craftingOpen: true
+                })
+                //this.startBuilding();
             } else {
-                this.stopBuilding();
+                UI.setState({
+                    craftingOpen: false
+                })
+                //this.stopBuilding();
             }
             //this.buildItem('t_wall_log', pointerTileX, pointerTileY);
         }
         this.keys.escapeKey.forEach(ek => {
             if(Phaser.Input.Keyboard.JustDown(ek)) {
                 this.stopBuilding();
+                UI.setState({
+                    inventoryOpen: false,
+                    craftingOpen: false
+                })
             }
         });
         if(Phaser.Input.Keyboard.JustDown(this.keys.toggleInventory)) {
@@ -319,14 +317,94 @@ export default class GameScene extends Phaser.Scene {
         })
         UI.update({player:player});
     }
-    buildItem(item_id, x, y) {
+    setupMap(id=0, width=32, height=24) {
+        let map = this.make.tilemap({tileWidth: TILE_WIDTH, tileHeight: TILE_HEIGHT, width: width, height: height});
+        
+        let tileset = map.addTilesetImage('tiles', 'tiles', TILE_WIDTH, TILE_HEIGHT);
+        
+        map.setLayer(0);
+
+        let backgroundLayer = map.createBlankDynamicLayer('background', tileset, 0,0);
+        this.layers.background = backgroundLayer;
+        
+        map.fill(null, 0, 0, width-1, height-1);
+        map.randomize(0, 0, map.width, map.height, [640, 640, 640, 640, 640, 640, 640, 640, 640, 641]);
+        
+        this.map = map;
+
+        let structureLayer = map.createBlankDynamicLayer('structures', tileset, 0, 0);
+        structureLayer.setCollisionByProperty({collision:true});
+        structureLayer.setCollisionBetween(640, 3250);
+        structureLayer.fill(644, 0,0,map.width, map.height);
+        structureLayer.fill(null, 1, 1, map.width-2, map.height-2);
+        this.impact.world.setCollisionMapFromTilemapLayer(structureLayer, { defaultCollidingSlope: 1 });
+
+        this.layers.structure = structureLayer;
+
+        let itemMap = this.make.tilemap({tileWidth: TILE_WIDTH, tileHeight: TILE_HEIGHT, width: width, height:height});
+        
+        let itemTileset = itemMap.addTilesetImage('tiles', 'tiles', TILE_WIDTH, TILE_HEIGHT);
+        itemMap.setLayer(2);
+        let itemLayer = itemMap.createBlankDynamicLayer('items', itemTileset, 0,0);
+        /* Add some random items */
+        for(let i = 0; i < 48; i++) {
+            let id = ['2x4', 'stick', 'log', 'nail'][Phaser.Math.Between(0,3)];
+            let item = new Item({name: id, id: id, x: Phaser.Math.Between(1,22), y: Phaser.Math.Between(1,22)});
+            //console.log(item);
+
+            let itemTile = new Phaser.Tilemaps.Tile(itemLayer, item.tile, item.x, item.y);
+            itemTile.properties = item;
+
+            itemLayer.putTileAt(itemTile, item.x, item.y);
+        }
+        this.layers.item = itemLayer;
+        this.itemMap = itemMap;
+
+    }
+    setMap(id, width, height, map) {
+        this.layers.background.fill(-1, 0, 0, width, height);
+        this.layers.structure.fill(-1, 0, 0, width, height);
+        this.layers.item.fill(-1, 0, 0, width, height);
+console.log(map.ground);
+        /*for(let y = 0; y<height; y++) {
+            for(let x = 0; x<width; x++) {
+                this.layers.background.putTileAt(map.ground[y][x], x, y);
+            }
+        }*/
+        this.layers.background.putTilesAt(map.ground, 0, 0);
+        
+        map.structure.forEach(s => {
+            this.layers.structure.putTileAt(s.tile, s.x, s.y);
+        });
+        map.item.forEach(i => {
+            this.layers.item.putTileAt(i.tile, i.x, i.y);
+        });
+        this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
+    }
+    buildItem(recipe, x, y) {
+        const item_id = recipe.post_terrain;
         const player = this.player;
         if(player.inventory.length>0) {
             let t = this.layers.structure.getTileAt(x, y);
             let adjacent = this.layers.structure.getTilesWithin(x-1, y-1, 3, 3, {isNotEmpty: true,isColliding:true}).filter(t => t.x == x || t.y == y);
             if(!t || !t.canCollide) {
-                let item = player.inventory.remove('wood_plate', 1);
-                if(item) {
+
+                /* Does the player have all the components the recipe requires */
+                let hasComponents = recipe.components.filter(component => {
+                    return player.inventory.has(component[0], component[1]);
+                }).length>0;
+                
+                if(1||hasComponents) {
+
+                    /* Remove components from player's inventory */
+                    recipe.components.forEach(component => {
+                        player.inventory.remove(component[0], component[1]);
+                    });
+
+
+                    let item = new Item({
+
+                    });
                     item.tile = ItemResolver(item_id).fg;
                     if(adjacent.length === 3) {
                         item.tile = 2248;
@@ -345,21 +423,24 @@ export default class GameScene extends Phaser.Scene {
                         // end
                         
                     }
-                    let itemTile = new Phaser.Tilemaps.Tile(this.itemMap, item.tile, item.x, item.y);
+                    let itemTile = new Phaser.Tilemaps.Tile(this.layers.item, item.tile, item.x, item.y);
                     itemTile.angle = item.angle||0;
                     itemTile.properties = item;
                     if(this.ghostBuilding && this.ghostBuilding.rotation) {
                         itemTile.rotation = this.ghostBuilding.rotation;
                     }
-                    this.layers.structure.putTileAt(itemTile, x, y);
-                    this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
+                    //this.layers.structure.putTileAt(itemTile, x, y);
+                    //this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
+                    console.log("net send",{item:item,x:x,y:y} )
+                    Network.send('build', {item, x, y});
                 }
             }
         }
     }
-    startBuilding() {
-        this.building = 't_wall_log';
-        this.ghostBuilding = this.add.image(this.marker.x + this.marker.width / 2, this.marker.y + this.marker.height / 2, 'tiles', ItemResolver(this.building).fg);
+    startBuilding(recipe) {
+        this.building = recipe;
+        
+        this.ghostBuilding = this.add.image(this.marker.x + this.marker.width / 2, this.marker.y + this.marker.height / 2, 'tiles', ItemResolver(this.building.post_terrain).fg);
         this.ghostBuilding.setOrigin(0.5);
         //this.ghostBuilding.setDisplayOrigin(0, 0);
         
@@ -367,7 +448,7 @@ export default class GameScene extends Phaser.Scene {
         this.ghostBuilding.x = this.marker.x;
         this.ghostBuilding.y = this.marker.y;
         UI.setState({
-            building: true
+            building: this.building
         })
     }
     stopBuilding() {
@@ -377,7 +458,7 @@ export default class GameScene extends Phaser.Scene {
         }
         this.marker.clear();
         this.marker.lineStyle(2, 0x000000, 1);
-        this.marker.strokeRect(0, 0, this.itemMap.tileWidth * this.layers.background.scaleX, this.itemMap.tileHeight * this.layers.background.scaleY);
+        this.marker.strokeRect(0, 0, this.layers.item.tileWidth * this.layers.background.scaleX, this.layers.item.tileHeight * this.layers.background.scaleY);
         this.building = false; 
         UI.setState({
             building: false
@@ -385,5 +466,9 @@ export default class GameScene extends Phaser.Scene {
     }
     updateEntities(time, delta) {
         this.entities.forEach(e => e.update(time, delta));
+    }
+    onBuild = (args) => {
+        let recipe = args.recipe;
+        this.startBuilding(recipe);
     }
 }

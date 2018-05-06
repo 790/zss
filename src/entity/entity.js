@@ -25,8 +25,8 @@ class Inventory {
         inv.push(item);
         this.inventory = inv;
     }
-    has(item_id) {
-        return this.inventory.filter(i => i.id === item_id).length;
+    has(item_id, n=1) {
+        return this.inventory.filter(i => i.id === item_id).length>=n;
     }
     remove(item, n=1) {
         if(n>1) {
