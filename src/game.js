@@ -46,15 +46,35 @@ export default class GameScene extends Phaser.Scene {
                         this.clients[client.id] = client;
                         let sprite = this.physics.add.sprite(client.x, client.y, 'tiles', ItemResolver('mon_bandit_looter').fg);
                         sprite.setActive().setMaxVelocity(300,300);
+                        sprite.setPosition(client.x, client.y);
                         this.clientMap[client.id] = sprite;
+                    } else {
+                        
+                        this.player.id = client.id;
+                        this.player.sprite.destroy();
+
+                        //this.player.sprite.x = client.x;//setPosition(client.x, client.y);
+                        //this.player.sprite.y = client.y;
+                        this.player.x = client.x;
+                        this.player.y = client.y;
+                        const sprite = this.impact.add.sprite(this.player.x, this.player.y, 'wormie');
+                        sprite.setActive().setMaxVelocity(300, 300).setActiveCollision(true);
+                        this.player.sprite = sprite;
+                        sprite.scaleX = 2;
+                        sprite.scaleY = 2;
+                        sprite.setBodyScale(2, 2);
+                        this.cameras.main.startFollow(sprite);
                     }
                 })
             }).on('clientConnected', (client) => {
                 console.log(client);
-                this.clients[client.id] = client;
-                let sprite = this.physics.add.sprite(client.x, client.y, 'tiles', ItemResolver('mon_bandit_looter').fg);
-                sprite.setActive().setMaxVelocity(300,300);
-                this.clientMap[client.id] = sprite;
+                if(!this.clients[client.id]) {
+                    this.clients[client.id] = client;
+                    let sprite = this.physics.add.sprite(client.x, client.y, 'tiles', ItemResolver('mon_bandit_looter').fg);
+                    sprite.setActive().setMaxVelocity(300,300);
+                    sprite.setPosition(client.x, client.y);
+                    this.clientMap[client.id] = sprite;
+                }
             }).on('clientDisconnected', (client) => {
                 console.log(client.id, this.clientMap);
                 if(this.clientMap[client.id]) {
@@ -64,10 +84,7 @@ export default class GameScene extends Phaser.Scene {
                 }
             }).on('move', data => {
                 if(data && data.player.id && this.clientMap[data.player.id]) {
-                    /*this.clientMap[data.player.id].setX(data.player.x);
-                    this.clientMap[data.player.id].setY(data.player.y);*/
                     let player = this.clientMap[data.player.id];
-                    //this.physics.moveTo(player, data.player.x, data.player.y, 1000, 0);
                     player.setPosition(data.player.x, data.player.y);
                 }
             }).on('setTile', data => {
@@ -93,15 +110,19 @@ export default class GameScene extends Phaser.Scene {
                 if(data.type === 'push') {
                     console.log(data);
                     player.inventory.push(data.item);
+                } else if(data.type === 'set') {
+                    player.inventory.from(data.inventory);
                 }
                 
+            }).on('action_error', data => { /* Sent by server when we failed to do something */
+                console.log("[ACTION ERROR]", data);
             });
         });
-        this.physics.world.setBounds();
-        this.impact.world.setBounds();
-
         this.setupMap();
-        
+
+        this.physics.world.setBounds(0,0,this.layers.background.width, this.layers.background.height );
+        this.impact.world.setBounds(0,0,this.layers.background.width, this.layers.background.height);
+
         const player = new Player({
             x: 400, y: 300, name: 'wormie'
         });
@@ -116,6 +137,8 @@ export default class GameScene extends Phaser.Scene {
         sprite.scaleY = 2;
         sprite.setBodyScale(2, 2);
         this.cameras.main.setSize(800, 600);
+        console.log(this.layers.background);
+        this.cameras.main.setBounds(0,0, this.layers.background.width, this.layers.background.height)
         this.cameras.main.startFollow(sprite);
         this.entityGroup = this.physics.add.group();
         
@@ -207,7 +230,7 @@ export default class GameScene extends Phaser.Scene {
                 this.marker.strokeRect(0, 0, map.tileWidth * this.layers.background.scaleX, map.tileHeight * this.layers.background.scaleY);
             }
         }
-        if (this.input.manager.activePointer.isDown && proximity) {
+        if (this.input.manager.activePointer.justDown && proximity) {
             let item = map.getTileAt(pointerTileX, pointerTileY);
             if(item && player.inventory.canAddToInventory(item)) {
                 /*player.inventory.push(item.properties);
@@ -317,7 +340,7 @@ export default class GameScene extends Phaser.Scene {
         })
         UI.update({player:player});
     }
-    setupMap(id=0, width=32, height=24) {
+    setupMap(id=0, width=64, height=64) {
         let map = this.make.tilemap({tileWidth: TILE_WIDTH, tileHeight: TILE_HEIGHT, width: width, height: height});
         
         let tileset = map.addTilesetImage('tiles', 'tiles', TILE_WIDTH, TILE_HEIGHT);
@@ -395,15 +418,8 @@ console.log(map.ground);
                 }).length>0;
                 
                 if(1||hasComponents) {
-
-                    /* Remove components from player's inventory */
-                    recipe.components.forEach(component => {
-                        player.inventory.remove(component[0], component[1]);
-                    });
-
-
                     let item = new Item({
-
+                        id: item_id
                     });
                     item.tile = ItemResolver(item_id).fg;
                     if(adjacent.length === 3) {

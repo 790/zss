@@ -1,10 +1,51 @@
-const Between = require('phaser/src/math/Between');
+import {Item} from '../src/entity/item';
+import Inventory from '../src/entity/inventory';
+import {Player} from '../src/entity/player';
+
+import {CraftingRecipes} from '../src/crafting';
+
+
 const express = require('express');
+const cors = require('cors');
 const app = express();
 const server = require('http').Server(app);
 const io = require('socket.io').listen(server);
 
 const itemData = require('../assets/ChestHoleTileset/tile_config.json');
+
+app.use(cors());
+
+let lastInstanceId = 0;
+class Instance {
+    constructor(width=32, height=32) {
+        this.id = lastInstanceId++;
+        this.map = {
+            width,
+            height,
+            ground: new Array(height).fill(0).map(_ => new Array(width).fill(-1)),
+            structure: [],
+            item: []
+        };
+        this.created = new Date();
+    }
+    getMap() {
+        return this.map;
+    }
+    randomize() {
+
+    }
+}
+const instances = {};
+
+let defaultInstance = new Instance(64,64);
+instances[defaultInstance.id] = defaultInstance;
+
+function getRandomInt(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min)) + min;
+  }
+const Between = getRandomInt;
 
 let itemMap = {};
 itemData['tiles-new'][0]['tiles'].forEach(t => {
@@ -20,17 +61,17 @@ itemData['tiles-new'][0]['tiles'].forEach(t => {
 function ItemResolver(id) {
     return itemMap[id];
 }
-
+const defaultMapWidth = 64;
+const defaultMapHeight = 64;
 const defaultMap = {
-    width: 32,
-    height: 24,
-    ground: new Array(24).fill(0).map(_ => new Array(32).fill(0)),
+    width: defaultMapWidth,
+    height: defaultMapHeight,
+    ground: new Array(defaultMapHeight).fill(0).map(_ => new Array(defaultMapWidth).fill(0)),
     structure: [],
     item: []
 };
 
-let map = {...defaultMap};
-
+let map = defaultInstance.getMap();
 map.ground = map.ground.map(gy => gy.map(t => Between(0,9)===0?641:640));
 
 map.structure.push({
@@ -47,11 +88,7 @@ for(let i = 0; i < 48; i++) {
 app.get('/', (req, res) => {
     res.send('Hej');
 })
-function getRandomInt(min, max) {
-    min = Math.ceil(min);
-    max = Math.floor(max);
-    return Math.floor(Math.random() * (max - min)) + min;
-  }
+
 server.listen(3015, () => {
     console.log("listening on port "+server.address().port)
 });
@@ -60,36 +97,67 @@ io.on('connection', (socket) => {
     console.log("client connected");
 
     socket.on('helo', (msg) => {
-        socket.player = {
+        socket.player = new Player({
             x:getRandomInt(100, 300),
             y:getRandomInt(100, 300),
             id: server.lastPlayerId++,
-            inventory: []
-        }
+            instance: defaultInstance.id,
+            inventory: new Inventory([])
+        });
         socket.emit('clientList', getClientList(socket))
         socket.broadcast.emit('clientConnected',socket.player);
         socket.emit('map', {
             id: 0,
-            map: map
+            map: instances[socket.player.instance].getMap()
         })
     });
     socket.on('move', (msg) => {
         msg.player.id = socket.player.id;
-        
+        socket.player.x = msg.player.x;
+        socket.player.y = msg.player.y;
         socket.broadcast.emit('move', msg);
     });
     socket.on('build', (msg) => {
+        const player = socket.player;
         if(!msg.player) {
             msg.player = {id: socket.player.id}
         } else {
             msg.player.id = socket.player.id;
         }
-        map.structure.push({
-            x: msg.x, y:msg.y, tile: msg.item.tile
-        })
-        msg.layer = 'structure';
-        socket.emit('setTile',msg);
-        socket.broadcast.emit('setTile', msg);
+        let recipe = CraftingRecipes.find(cr => cr.post_terrain === msg.item.id);
+
+        if(!recipe) {
+            socket.emit('action_error', {command: 'build', msg: 'Could not build. Invalid recipe'});
+            return;
+        }
+
+        /* Check the player has required components */
+        let hasComponents = recipe.components.filter(component => {
+            return player.inventory.has(component[0], component[1]);
+        }).length>0;
+
+        /* Check there's no building present already */
+        if(map.structure.find(t => t.x === msg.x && t.y === msg.y)) {
+            socket.emit('action_error', {command: 'build', msg: 'Could not build. Structure already present'});
+            return;
+        }
+        if(hasComponents) {
+
+            /* Remove components from player's inventory */
+            recipe.components.forEach(component => {
+                player.inventory.remove(component[0], component[1]);
+            });
+            map.structure.push({
+                x: msg.x, y:msg.y, tile: msg.item.tile
+            })
+            msg.layer = 'structure';
+            socket.emit('setTile',msg);
+            socket.broadcast.emit('setTile', msg);
+
+            socket.emit('inventory', {type:'set', inventory: player.inventory.toArray()});
+        } else {
+            socket.emit('action_error', {command: 'build', msg: 'Could not build. Missing components'});
+        }
     }).on('pickup', (msg) => {
         if(!msg.player) {
             msg.player = {id: socket.player.id};
@@ -97,7 +165,7 @@ io.on('connection', (socket) => {
         let i = map.item.findIndex(i => i.x === msg.x && i.y === msg.y);
         if(i>=0) {
             let item = map.item.splice(i, 1)[0];
-            socket.player.inventory.push(item.tile);
+            socket.player.inventory.push({id: item.name, name: item.name, tile: item.tile});
             socket.broadcast.emit('setTile', {layer: 'item', item: { x: msg.x, y:msg.y, tile: -1}});
             socket.emit('setTile', {layer: 'item', item: {x: msg.x, y:msg.y, tile: -1}});
             socket.emit('inventory', {type:'push', item: item});
@@ -110,7 +178,6 @@ io.on('connection', (socket) => {
 })
 
 function getClientList(so) {
-    console.log(io.sockets.connected)
     return Object.keys(io.sockets.connected).map(s => {
             let p = {...io.sockets.connected[s].player};
             if(so.id===io.sockets.connected[s].id) { 

@@ -7,7 +7,7 @@ class Network {
     start() {
         return new Promise((resolve, reject) => {
             console.log("Connecting");
-            let socket = io.connect('http://localhost:3015/', {reconnection: false});
+            let socket = io.connect('http://'+window.location.hostname+':3015/', {reconnection: false});
             socket.on('connect', _ => {
                 socket.emit('helo');
                 console.log("Connected");
