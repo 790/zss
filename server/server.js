@@ -72,17 +72,17 @@ const defaultMap = {
 };
 
 let map = defaultInstance.getMap();
-map.ground = map.ground.map(gy => gy.map(t => Between(0,9)===0?641:640));
 
+map.ground = map.ground.map(gy => gy.map(t => Between(0,9)===0?641:640));
 map.structure.push({
     x: 10,
     y: 10,
-    tile: ItemResolver('t_wall_log').fg
+    id: 't_wall_log'
 });
 
 for(let i = 0; i < 48; i++) {
     let id = ['2x4', 'stick', 'log', 'nail'][Between(0,3)];
-    map.item.push({id: id, name: id, tile: ItemResolver(id).fg, x: Between(1,22), y: Between(1,22)});
+    map.item.push({id: id, name: id, x: Between(1,22), y: Between(1,22)});
 }
 
 app.get('/', (req, res) => {
@@ -132,10 +132,10 @@ io.on('connection', (socket) => {
         }
 
         /* Check the player has required components */
-        let hasComponents = recipe.components.filter(component => {
-            return player.inventory.has(component[0], component[1]);
-        }).length>0;
-
+        let hasComponents = recipe.components.filter(r => {
+            return r.filter(component => player.inventory.has(component[0], component[1])).length>0
+        }).length===recipe.components.length;
+        console.log(hasComponents, recipe.components, player.inventory.inventory)
         /* Check there's no building present already */
         if(map.structure.find(t => t.x === msg.x && t.y === msg.y)) {
             socket.emit('action_error', {command: 'build', msg: 'Could not build. Structure already present'});
@@ -144,8 +144,12 @@ io.on('connection', (socket) => {
         if(hasComponents) {
 
             /* Remove components from player's inventory */
-            recipe.components.forEach(component => {
-                player.inventory.remove(component[0], component[1]);
+            recipe.components.forEach(r => {
+                let x = r.filter(component => player.inventory.has(component[0], component[1]));
+                if(x.length) {
+                    player.inventory.remove(x[0][0], x[0][1]);
+                }
+                
             });
             map.structure.push({
                 x: msg.x, y:msg.y, tile: msg.item.tile
@@ -165,9 +169,9 @@ io.on('connection', (socket) => {
         let i = map.item.findIndex(i => i.x === msg.x && i.y === msg.y);
         if(i>=0) {
             let item = map.item.splice(i, 1)[0];
-            socket.player.inventory.push({id: item.name, name: item.name, tile: item.tile});
+            socket.player.inventory.push(item);
             socket.broadcast.emit('setTile', {layer: 'item', item: { x: msg.x, y:msg.y, tile: -1}});
-            socket.emit('setTile', {layer: 'item', item: {x: msg.x, y:msg.y, tile: -1}});
+            socket.emit('setTile', {layer: 'item', item: {x: msg.x, y:msg.y, id: -1}});
             socket.emit('inventory', {type:'push', item: item});
         }
     })

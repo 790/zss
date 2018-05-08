@@ -1,6 +1,7 @@
 import {Entity} from './entity';
 
 import itemData from '../../assets/ChestHoleTileset/tile_config.json';
+import Inventory from './inventory';
 
 const itemMap = {};
 
@@ -33,6 +34,38 @@ export class Item extends Entity {
     }
 }
 
+class ItemProcessor extends Entity {
+    constructor(args) {
+        super(args);
+        this.inputs = [];
+        this.outputs = [];
+        this.processingTime = 0;
+        this.inventory = new Inventory(this.inventorySize);
+    }
+    activate(entity) {
+        let hasComponents = this.inputs.filter(component => {
+            return entity.inventory.has(component[0], component[1]);
+        }).length>0;
+        if(hasComponents) {
+            let inputs = [
+                [ [ "log", 2 ] ],
+                [ [ "stick", 3 ], [ "2x4", 6 ] ]
+            ];
+
+            this.inputs.inputs.filter(r => {
+                return r.filter(component => entity.inventory.has(component[0], component[1])).length>0
+            })
+            this.inputs.forEach(component => {
+                entity.inventory.remove(component[0], component[1]);
+            });
+            this.outputs.forEach(o => {
+                for(let i = 0; i < o[1]; i++) {
+                    entity.inventory.push(o[0]);
+                }
+            })
+        }
+    }
+}
 export function ItemResolver(id) {
     return itemMap[id];
 }

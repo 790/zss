@@ -81,7 +81,7 @@ class UI {
                 line.fillRect(0, offsetY + i*16, 100, 16);
                 lineC.add(line);
 
-                let s = this.game.add.sprite(0, offsetY + i*16, 'tiles', inv[i].tile);
+                let s = this.game.add.sprite(0, offsetY + i*16, 'tiles', ItemResolver(inv[i].id).fg);
                 s.setScale(0.5, 0.5);
                 s.setOrigin(0,0);
                 lineC.add(s);
@@ -130,7 +130,12 @@ class UI {
                 []
             );*/
             let comps = cr.components;
-            return cr;
+
+            const hasComponents = comps.filter(r => {
+                return r.filter(component => inv.has(component[0], component[1])).length>0
+            }).length==comps.length;
+            
+            return hasComponents?cr:null;
             if(comps.length === comps.filter(c => inv.has(c[0], c[1])).length) {
                 return cr;
             }

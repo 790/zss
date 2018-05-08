@@ -93,8 +93,10 @@ export default class GameScene extends Phaser.Scene {
                 if(!this.layers[data.layer]) {
                     return;
                 }
-                if(item.tile === -1) {
+                if(item.id === -1) {
                     this.layers[data.layer].removeTileAt(item.x, item.y);
+                } else {
+                    item.tile = ItemResolver(item.id).fg;
                 }
                 let itemTile = new Phaser.Tilemaps.Tile(this.layers[data.layer], item.tile, item.x, item.y);
                 itemTile.angle = item.angle||0;
@@ -397,10 +399,10 @@ console.log(map.ground);
         this.layers.background.putTilesAt(map.ground, 0, 0);
         
         map.structure.forEach(s => {
-            this.layers.structure.putTileAt(s.tile, s.x, s.y);
+            this.layers.structure.putTileAt(ItemResolver(s.id).fg, s.x, s.y);
         });
         map.item.forEach(i => {
-            this.layers.item.putTileAt(i.tile, i.x, i.y);
+            this.layers.item.putTileAt(ItemResolver(i.id).fg, i.x, i.y);
         });
         this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
     }
