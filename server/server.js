@@ -134,6 +134,7 @@ const defaultMap = {
 defaultInstance.randomize();
 let map = defaultInstance.getMap();
 
+/*
 map.ground = map.ground.map(gy => gy.map(t => Between(0,9)===0?{id:'t_dirt'}:{id:'t_grass'}));
 map.structure.push({
     x: 10,
