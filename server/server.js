@@ -12,6 +12,18 @@ const server = require('http').Server(app);
 const io = require('socket.io').listen(server);
 
 const itemData = require('../assets/ChestHoleTileset/tile_config.json');
+const mapData = require('./house04.json');
+if (mapData.length!==1)
+{
+        console.error("error: json map file need 1 entry. this file provides", mapData.length);
+        process.exit(1);
+}
+if (mapData[0].type !== "mapgen")
+{
+        console.error("error: json map file is not type mapgen. this file provides", mapData[0].type);
+        process.exit(1);
+}
+
 
 app.use(cors());
 
@@ -19,6 +31,29 @@ let lastInstanceId = 0;
 class Instance {
     constructor(width=32, height=32) {
         this.id = lastInstanceId++;
+let     x,y,w,h,
+        obj=mapData[0].object;
+        w = obj.rows[0].length;
+        h = obj.rows.length;
+let     buf_rows = [];
+buf_rows = new Array(height).fill(0).map(_ => new Array(width).fill(-1));
+for(y=0;y<obj.rows.length;y++) {
+        //let buf_row = [];
+        for(x=0;x<obj.rows[y].length;x++) {
+                let tile_char = obj.rows[y][x];
+                let tile_name = obj.terrain[tile_char];
+                if(tile_name === undefined) {
+                        tile_name = obj.fill_ter;
+                }
+                // x scanning and filling
+                //buf_row.push({id: tile_name});
+		buf_rows[y][x] = {id: tile_name};
+        }
+        //buf_rows.push(buf_row);
+}
+
+this.map = { width, height, ground:buf_rows,structure: [],item: []};	    
+	    /*
         this.map = {
             width,
             height,
@@ -26,6 +61,9 @@ class Instance {
             structure: [],
             item: []
         };
+	*/
+
+
         this.created = new Date();
     }
     getMap() {
@@ -72,7 +110,7 @@ const defaultMap = {
 };
 defaultInstance.randomize();
 let map = defaultInstance.getMap();
-
+/*
 map.ground = map.ground.map(gy => gy.map(t => Between(0,9)===0?641:640));
 map.structure.push({
     x: 10,
@@ -84,7 +122,7 @@ for(let i = 0; i < 48; i++) {
     let id = ['2x4', 'stick', 'log', 'nail'][Between(0,3)];
     map.item.push({id: id, name: id, x: Between(1,22), y: Between(1,22)});
 }
-
+*/
 app.get('/', (req, res) => {
     res.send('Hej');
 })
