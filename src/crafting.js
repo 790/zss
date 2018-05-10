@@ -1,4 +1,4 @@
-import RawCraftingRecipes from './data/crafting.json';
+import RawCraftingRecipes from '../data/crafting.json';
 
 const CraftingRecipes = RawCraftingRecipes.map(cr => {
     /*cr.components = cr.components.reduce(
