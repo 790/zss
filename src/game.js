@@ -7,6 +7,32 @@ import { LivingEntity } from './entity/entity';
 
 import Network from './network';
 
+import RawTerrainData from '../data/json/terrain.json';
+const TerrainData = {};
+
+RawTerrainData.forEach(t => {
+    if(t.id instanceof Array) {
+        t.id.forEach(id => {
+            TerrainData[id] = t;
+        })
+    } else {
+        TerrainData[t.id] = t
+    }
+});
+
+import RawFurnitureData from '../data/json/furniture.json';
+const FurnitureData = {};
+
+RawFurnitureData.forEach(t => {
+    if(t.id instanceof Array) {
+        t.id.forEach(id => {
+            FurnitureData[id] = t;
+        })
+    } else {
+        FurnitureData[t.id] = t
+    }
+});
+
 const TILE_WIDTH = 24;
 const TILE_HEIGHT = 24;
 
@@ -359,7 +385,7 @@ export default class GameScene extends Phaser.Scene {
         this.map = map;
 
         let structureLayer = map.createBlankDynamicLayer('structures', tileset, 0, 0);
-        structureLayer.setCollisionByProperty({collision:true});
+        structureLayer.setCollisionByProperty({collides:true});
         structureLayer.setCollisionBetween(640, 3250);
         structureLayer.fill(644, 0,0,map.width, map.height);
         structureLayer.fill(null, 1, 1, map.width-2, map.height-2);
@@ -396,12 +422,10 @@ export default class GameScene extends Phaser.Scene {
                 this.layers.background.putTileAt(map.ground[y][x], x, y);
             }
         }*/
+        let collisionMap = new Array(height).fill(0).map(_ => new Array(width).fill(0));
         let ground = map.ground.map((r,y) => {
             return r.map((t,x) => {
                 let i = ItemResolver(t.id);
-                if(t.id === 't_wall') {
-                    console.log(i);
-                }
                 if(!i.bg && i.fg) {
                     return new Phaser.Tilemaps.Tile(this.layers.background, i.fg);
                 } else if(i.bg && i.fg) {
@@ -417,12 +441,17 @@ export default class GameScene extends Phaser.Scene {
         this.layers.background.putTilesAt(ground, 0, 0);
         
         map.structure.forEach(s => {
-            this.layers.structure.putTileAt(s.tile||ItemResolver(s.id).fg, s.x, s.y);
+            let t = new Phaser.Tilemaps.Tile(this.layers.structure, s.tile||ItemResolver(s.id).fg);
+            this.layers.structure.putTileAt(t, s.x, s.y);
+            if((TerrainData[s.id] && TerrainData[s.id].move_cost === 0) || (FurnitureData[s.id] && FurnitureData[s.id].move_cost_mod === -1)) {
+                collisionMap[s.y][s.x] = 1;
+            }
         });
         map.item.forEach(i => {
             this.layers.item.putTileAt(ItemResolver(i.id).fg, i.x, i.y);
         });
-        this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
+        //this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
+        this.impact.world.setCollisionMap(collisionMap, TILE_WIDTH);
     }
     buildItem(recipe, x, y) {
         const item_id = recipe.post_terrain;

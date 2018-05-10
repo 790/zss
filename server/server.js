@@ -36,6 +36,7 @@ let     x,y,w,h,
         w = obj.rows[0].length;
         h = obj.rows.length;
 let     buf_rows = [];
+let structures = [];
 buf_rows = new Array(height).fill(0).map(_ => new Array(width).fill(-1));
 for(y=0;y<obj.rows.length;y++) {
         //let buf_row = [];
@@ -47,13 +48,18 @@ for(y=0;y<obj.rows.length;y++) {
                 }
                 // x scanning and filling
                 //buf_row.push({id: tile_name});
+                if(obj.furniture[tile_char]) {
+                    structures.push({
+                        id: obj.furniture[tile_char], x, y
+                    });
+                }
 		buf_rows[y][x] = {id: tile_name};
         }
         //buf_rows.push(buf_row);
 }
 
-this.map = { width, height, ground:buf_rows,structure: [],item: []};	    
-	    
+this.map = { width, height, ground:buf_rows,structure: structures, item: []};	    
+
 
         /*
             map properties.
