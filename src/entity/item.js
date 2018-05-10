@@ -71,16 +71,21 @@ export function ItemResolver(id) {
     let item = {...itemMap[id]};
     if(item.fg instanceof Array && item.fg.length) {
         if(typeof item.fg[0] === 'number') {
-            return { fg: item.fg[Math.floor(Math.random()*item.fg.length)] };
+            item.fg = item.fg[Math.floor(Math.random()*item.fg.length)];
+            return item;
         }
-        item.fg = randomWeightedChoice(item.fg.map(e => { 
-            if(e.sprite instanceof Array && item.fg.length) {
-                e.id = e.sprite[Math.floor(Math.random()*e.sprite.length)];
+        if(id === 't_wall') console.log("a", item.fg);
+        item.fg = parseInt(randomWeightedChoice(item.fg.map(e => { 
+            if(e.sprite instanceof Array && e.sprite.length) {
+               return {...e, id: e.sprite[Math.floor(Math.random()*e.sprite.length)]};
             } else {
-                e.id = e.sprite;
+                return {...e, id: e.sprite};
             }
-            return e; 
-        }));
-    }
+            
+        })), 10);
+        if(id === 't_wall') console.log("b", item.fg);
+    } /*else if (!item.fg && item.bg) {
+        item.fg = item.bg;
+    }*/
     return item;
 }

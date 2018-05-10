@@ -391,20 +391,33 @@ export default class GameScene extends Phaser.Scene {
         this.layers.background.fill(-1, 0, 0, width, height);
         this.layers.structure.fill(-1, 0, 0, width, height);
         this.layers.item.fill(-1, 0, 0, width, height);
-console.log(map.ground);
         /*for(let y = 0; y<height; y++) {
             for(let x = 0; x<width; x++) {
                 this.layers.background.putTileAt(map.ground[y][x], x, y);
             }
         }*/
-        let ground = map.ground.map(r => {
-            return r.map(t => new Phaser.Tilemaps.Tile(this.layers.background, ItemResolver(t.id).fg));
+        let ground = map.ground.map((r,y) => {
+            return r.map((t,x) => {
+                let i = ItemResolver(t.id);
+                if(t.id === 't_wall') {
+                    console.log(i);
+                }
+                if(!i.bg && i.fg) {
+                    return new Phaser.Tilemaps.Tile(this.layers.background, i.fg);
+                } else if(i.bg && i.fg) {
+                    
+                    map.structure.push({id: t.id, tile: i.fg, x, y});
+                    return new Phaser.Tilemaps.Tile(this.layers.background, i.bg);
+                } else if(i.bg && !i.fg) {
+                    return new Phaser.Tilemaps.Tile(this.layers.background, i.bg);
+                }
+            })
         });
-        console.log(ground);
+        console.log(map.structure);
         this.layers.background.putTilesAt(ground, 0, 0);
         
         map.structure.forEach(s => {
-            this.layers.structure.putTileAt(ItemResolver(s.id).fg, s.x, s.y);
+            this.layers.structure.putTileAt(s.tile||ItemResolver(s.id).fg, s.x, s.y);
         });
         map.item.forEach(i => {
             this.layers.item.putTileAt(ItemResolver(i.id).fg, i.x, i.y);
