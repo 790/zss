@@ -78,13 +78,13 @@ this.map = { width, height, ground:buf_rows,structure: [],item: []};
                 { id: 'nail', x: 20, y: 20, count: 10 }
             ]
         */
-        this.map = {
+        /*this.map = {
             width,
             height,
             ground: new Array(height).fill(0).map(_ => new Array(width).fill(-1)),
             structure: [],
             item: []
-        };
+        };*/
 
 
         this.created = new Date();
