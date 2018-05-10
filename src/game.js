@@ -193,6 +193,7 @@ export default class GameScene extends Phaser.Scene {
 
         this.projectiles = projectiles;
         this.entityUpdateTimer = this.time.addEvent({ delay: 1000, callback: this.updateEntities, callbackScope: this, loop: true });
+
     }
     update(time, delta) {
         
@@ -396,7 +397,11 @@ console.log(map.ground);
                 this.layers.background.putTileAt(map.ground[y][x], x, y);
             }
         }*/
-        this.layers.background.putTilesAt(map.ground, 0, 0);
+        let ground = map.ground.map(r => {
+            return r.map(t => new Phaser.Tilemaps.Tile(this.layers.background, ItemResolver(t.id).fg));
+        });
+        console.log(ground);
+        this.layers.background.putTilesAt(ground, 0, 0);
         
         map.structure.forEach(s => {
             this.layers.structure.putTileAt(ItemResolver(s.id).fg, s.x, s.y);

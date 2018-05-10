@@ -2,6 +2,7 @@ import {Entity} from './entity';
 
 import itemData from '../../assets/ChestHoleTileset/tile_config.json';
 import Inventory from './inventory';
+import {randomWeightedChoice} from '../utils';
 
 const itemMap = {};
 
@@ -67,5 +68,9 @@ class ItemProcessor extends Entity {
     }
 }
 export function ItemResolver(id) {
-    return itemMap[id];
+    let item = {...itemMap[id]};
+    if(item.fg instanceof Array && item.fg.length) {
+        item.fg = randomWeightedChoice(item.fg.map(e => { e.id = e.sprite; return e; }));
+    }
+    return item;
 }

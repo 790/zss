@@ -53,7 +53,31 @@ for(y=0;y<obj.rows.length;y++) {
 }
 
 this.map = { width, height, ground:buf_rows,structure: [],item: []};	    
-	    /*
+	    
+
+        /*
+            map properties.
+
+            ground is a NxN 2d array. rows are Y, columns are X.
+            Each tile should look like: {
+                id: 't_floor'
+            }. A 2x2 example with grass in the bottom right: [
+                [ {id: 't_floor'}, {id: 't_floor'} ],
+                [ {id: 't_floor'}, {id: 't_grass'} ]
+            ]
+
+            structure is a 1d array of tiles which will have collision applied.
+            [
+                { id: 't_wall', x: 10, y: 12 },
+                { id: 'f_chair', x: 40, y: 40 }
+            ]
+
+            item is same as structure but for items that can be picked up.
+            [
+                { id: '2x4', x: 20, y: 20 },
+                { id: 'nail', x: 20, y: 20, count: 10 }
+            ]
+        */
         this.map = {
             width,
             height,
@@ -61,7 +85,6 @@ this.map = { width, height, ground:buf_rows,structure: [],item: []};
             structure: [],
             item: []
         };
-	*/
 
 
         this.created = new Date();
@@ -110,8 +133,8 @@ const defaultMap = {
 };
 defaultInstance.randomize();
 let map = defaultInstance.getMap();
-/*
-map.ground = map.ground.map(gy => gy.map(t => Between(0,9)===0?641:640));
+
+map.ground = map.ground.map(gy => gy.map(t => Between(0,9)===0?{id:'t_dirt'}:{id:'t_grass'}));
 map.structure.push({
     x: 10,
     y: 10,
