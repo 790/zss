@@ -71,9 +71,16 @@ export function ItemResolver(id) {
     let item = {...itemMap[id]};
     if(item.fg instanceof Array && item.fg.length) {
         if(typeof item.fg[0] === 'number') {
-            return { id: item.fg[Math.floor(Math.random()*item.fg.length)] };
+            return { fg: item.fg[Math.floor(Math.random()*item.fg.length)] };
         }
-        item.fg = randomWeightedChoice(item.fg.map(e => { e.id = e.sprite; return e; }));
+        item.fg = randomWeightedChoice(item.fg.map(e => { 
+            if(e.sprite instanceof Array && item.fg.length) {
+                e.id = e.sprite[Math.floor(Math.random()*e.sprite.length)];
+            } else {
+                e.id = e.sprite;
+            }
+            return e; 
+        }));
     }
     return item;
 }
