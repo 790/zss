@@ -73,7 +73,7 @@ const defaultMap = {
 defaultInstance.randomize();
 let map = defaultInstance.getMap();
 
-/*map.ground = map.ground.map(gy => gy.map(t => Between(0,9)===0?641:640));
+map.ground = map.ground.map(gy => gy.map(t => Between(0,9)===0?641:640));
 map.structure.push({
     x: 10,
     y: 10,
@@ -83,7 +83,7 @@ map.structure.push({
 for(let i = 0; i < 48; i++) {
     let id = ['2x4', 'stick', 'log', 'nail'][Between(0,3)];
     map.item.push({id: id, name: id, x: Between(1,22), y: Between(1,22)});
-}*/
+}
 
 app.get('/', (req, res) => {
     res.send('Hej');
