@@ -142,6 +142,8 @@ export default class GameScene extends Phaser.Scene {
                     player.inventory.from(data.inventory);
                 }
                 
+            }).on('projectile', data => {
+                this.fireProjectile(data);
             }).on('action_error', data => { /* Sent by server when we failed to do something */
                 console.log("[ACTION ERROR]", data);
             });
@@ -338,28 +340,14 @@ export default class GameScene extends Phaser.Scene {
             }
         }
         if(Phaser.Input.Keyboard.JustDown(this.keys.fireKey)) {
-            let projectile = this.projectiles.get(player.sprite.x, player.sprite.y, 'tiles', ItemResolver('animation_bullet_normal').fg); //this.physics.add.image(player.sprite.x-8, player.sprite.y-8, 'tiles', ItemResolver('bullet_crossbow').fg);
-            
-            if(projectile) {
-                projectile.enableBody(true,player.sprite.x, player.sprite.y).setActive(true).setVisible(true);
-                projectile.setCollideWorldBounds(true);
-                projectile.setCircle(4, 10, 10);
-                this.physics.add.collider(projectile, this.entityGroup, (a,b) => {
-                    console.log("collision entity", a,b);
-                    if(b.properties.hp <= 0) {
-                        this.entities.splice(this.entities.indexOf(b.properties), 1);
-                        b.destroy();
-                    } else {
-                        b.properties.hp -= 20;
-                    }
-                    a.destroy();
-                });
-                this.physics.add.collider(projectile, this.layers.structure, (a,b) => {
-                    console.log("collision struct", a,b);
-                    a.destroy();
-                });
-                this.physics.moveTo(projectile, this.input.x + this.cameras.main.scrollX, this.input.y + this.cameras.main.scrollY, 500);
-            }
+            Network.send('fire', {
+                source: {x: player.sprite.x, y: player.sprite.y},
+                dest: {x: this.input.x + this.cameras.main.scrollX, y: this.input.y + this.cameras.main.scrollY}
+            });
+            /*this.fireProjectile({
+                source: {x: player.sprite.x, y: player.sprite.y},
+                dest: {x: this.input.x + this.cameras.main.scrollX, y: this.input.y + this.cameras.main.scrollY}
+            });*/
         }
         if(moved) {
             Network.send('move', {player: {x: Math.round(player.sprite.x), y: Math.round(player.sprite.y)}});
@@ -368,6 +356,32 @@ export default class GameScene extends Phaser.Scene {
             this.clientMap[k].update();
         })
         UI.update({player:player});
+    }
+    fireProjectile(opts) {
+        let {source, dest} = opts;
+
+        let projectile = this.projectiles.get(source.x, source.y, 'tiles', ItemResolver('animation_bullet_normal').fg); //this.physics.add.image(player.sprite.x-8, player.sprite.y-8, 'tiles', ItemResolver('bullet_crossbow').fg);
+            
+        if(projectile) {
+            projectile.enableBody(true, source.x, source.y).setActive(true).setVisible(true);
+            projectile.setCollideWorldBounds(true);
+            projectile.setCircle(4, 10, 10);
+            this.physics.add.collider(projectile, this.entityGroup, (a,b) => {
+                console.log("collision entity", a,b);
+                if(b.properties.hp <= 0) {
+                    this.entities.splice(this.entities.indexOf(b.properties), 1);
+                    b.destroy();
+                } else {
+                    b.properties.hp -= 20;
+                }
+                a.destroy();
+            });
+            this.physics.add.collider(projectile, this.layers.structure, (a,b) => {
+                console.log("collision struct", a,b);
+                a.destroy();
+            });
+            this.physics.moveTo(projectile, dest.x, dest.y, 500);
+        }
     }
     setupMap(id=0, width=64, height=64) {
         let map = this.make.tilemap({tileWidth: TILE_WIDTH, tileHeight: TILE_HEIGHT, width: width, height: height});

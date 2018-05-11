@@ -185,6 +185,12 @@ io.on('connection', (socket) => {
         socket.player.y = msg.player.y;
         socket.broadcast.emit('move', msg);
     });
+    socket.on('fire', (msg) => {
+        msg.source.x = socket.player.x;
+        msg.source.y = socket.player.y;
+        socket.emit('projectile',msg);
+        socket.broadcast.emit('projectile', msg);
+    })
     socket.on('build', (msg) => {
         const player = socket.player;
         if(!msg.player) {
