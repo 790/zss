@@ -271,6 +271,25 @@ export default class GameScene extends Phaser.Scene {
             } else if(!item && this.building) {
                 this.buildItem(this.building, pointerTileX, pointerTileY);
             }
+            let tile = this.layers.structure.getTileAt(pointerTileX, pointerTileY);
+            console.log(tile);
+            if(tile) {
+                if(tile.properties.open || tile.properties.close) {
+                    console.log(tile);
+                    let s = {x: pointerTileX, y: pointerTileY, id: tile.properties.open||tile.properties.close};
+                    this.layers.structure.removeTileAt(pointerTileX, pointerTileY);
+                    let t = new Phaser.Tilemaps.Tile(this.layers.structure, ItemResolver(tile.properties.open||tile.properties.close).fg);
+                    if(TerrainData[s.id]) {
+                        this.collisionMap[s.y][s.x] = (TerrainData[s.id].move_cost === 0) ? 1:0;
+                        t.properties = TerrainData[s.id];
+                    }
+                    if(FurnitureData[s.id]) {
+                        this.collisionMap[s.y][s.x] = (FurnitureData[s.id].move_cost_mod === -1) ? 1:0
+                        t.properties = FurnitureData[s.id];
+                    }
+                    this.layers.structure.putTileAt(t, s.x, s.y);
+                }
+            }
         }
 
         sprite.setVelocity(0,0);
@@ -453,16 +472,26 @@ export default class GameScene extends Phaser.Scene {
         
         map.structure.forEach(s => {
             let t = new Phaser.Tilemaps.Tile(this.layers.structure, s.tile||ItemResolver(s.id).fg);
-            this.layers.structure.putTileAt(t, s.x, s.y);
-            if((TerrainData[s.id] && TerrainData[s.id].move_cost === 0) || (FurnitureData[s.id] && FurnitureData[s.id].move_cost_mod === -1)) {
-                collisionMap[s.y][s.x] = 1;
+            if(TerrainData[s.id]) {
+                if(TerrainData[s.id].move_cost === 0) {
+                    collisionMap[s.y][s.x] = 1;    
+                }
+                t.properties = TerrainData[s.id];
             }
+            if(FurnitureData[s.id]) {
+                if(FurnitureData[s.id].move_cost_mod === -1) {
+                    collisionMap[s.y][s.x] = 1;
+                }
+                t.properties = FurnitureData[s.id];
+            }
+            this.layers.structure.putTileAt(t, s.x, s.y);
         });
         map.item.forEach(i => {
             this.layers.item.putTileAt(ItemResolver(i.id).fg, i.x, i.y);
         });
+        this.collisionMap = collisionMap;
         //this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
-        this.impact.world.setCollisionMap(collisionMap, TILE_WIDTH);
+        this.impact.world.setCollisionMap(this.collisionMap, TILE_WIDTH);
     }
     buildItem(recipe, x, y) {
         const item_id = recipe.post_terrain;
@@ -477,7 +506,7 @@ export default class GameScene extends Phaser.Scene {
                     return player.inventory.has(component[0], component[1]);
                 }).length>0;
                 
-                if(1||hasComponents) {
+                if(hasComponents) {
                     let item = new Item({
                         id: item_id
                     });
