@@ -294,14 +294,11 @@ export default class GameScene extends Phaser.Scene {
                 UI.setState({
                     craftingOpen: true
                 })
-                //this.startBuilding();
             } else {
                 UI.setState({
                     craftingOpen: false
                 })
-                //this.stopBuilding();
             }
-            //this.buildItem('t_wall_log', pointerTileX, pointerTileY);
         }
         this.keys.escapeKey.forEach(ek => {
             if(Phaser.Input.Keyboard.JustDown(ek)) {
@@ -521,7 +518,6 @@ export default class GameScene extends Phaser.Scene {
         
         this.ghostBuilding = this.add.image(this.marker.x + this.marker.width / 2, this.marker.y + this.marker.height / 2, 'tiles', ItemResolver(this.building.post_terrain).fg);
         this.ghostBuilding.setOrigin(0.5);
-        //this.ghostBuilding.setDisplayOrigin(0, 0);
         
         this.ghostBuilding.setAlpha(0.4);
         this.ghostBuilding.x = this.marker.x;
