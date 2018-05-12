@@ -15,7 +15,7 @@ const TILE_WIDTH = 24;
 const TILE_HEIGHT = 24;
 
 export default class GameScene extends Phaser.Scene {
-    constructor(e) {
+    constructor() {
         super({
             key: 'GameScene',
             physics: {
@@ -41,7 +41,7 @@ export default class GameScene extends Phaser.Scene {
 
     }
     create() {
-        Network.start().then(_ => {
+        Network.start().then(() => {
             console.log("connected2");
             Network.socket.on('clientList', (data) => {
                 console.log("Client list", data);
@@ -53,7 +53,7 @@ export default class GameScene extends Phaser.Scene {
                         sprite.setPosition(client.x, client.y);
                         this.clientMap[client.id] = sprite;
                     } else {
-                        
+
                         this.player.id = client.id;
                         this.player.sprite.destroy();
 
@@ -106,7 +106,7 @@ export default class GameScene extends Phaser.Scene {
                 let itemTile = new Phaser.Tilemaps.Tile(this.layers[data.layer], item.tile, data.x, data.y);
                 itemTile.angle = item.angle||0;
                 itemTile.properties = item;
-                
+
                 if(data.layer === 'structure') {
                     if(TerrainData[item.id]) {
                         this.collisionMap[data.y][data.x] = (TerrainData[item.id].move_cost === 0) ? 1:0;
@@ -128,7 +128,7 @@ export default class GameScene extends Phaser.Scene {
                 } else if(data.type === 'set') {
                     player.inventory.from(data.inventory);
                 }
-                
+
             }).on('projectile', data => {
                 this.fireProjectile(data);
             }).on('action_error', data => { /* Sent by server when we failed to do something */
@@ -145,8 +145,8 @@ export default class GameScene extends Phaser.Scene {
         });
         const sprite = this.impact.add.sprite(400, 300, 'wormie');
         sprite.setActive().setMaxVelocity(300, 300).setActiveCollision(true);
-        
-        
+
+
         this.player = player;
         player.sprite = sprite;
         console.log(player,"x");
@@ -158,7 +158,7 @@ export default class GameScene extends Phaser.Scene {
         this.cameras.main.setBounds(0,0, this.layers.background.width, this.layers.background.height)
         this.cameras.main.startFollow(sprite);
         this.entityGroup = this.physics.add.group();
-        
+
         /* Add some random enemies */
         for(let i = 0; i < 1; i++) {
             let enemy = new LivingEntity({
@@ -211,7 +211,7 @@ export default class GameScene extends Phaser.Scene {
 
     }
     update(time, delta) {
-        
+
         const cursors = this.input.keyboard.createCursorKeys();
         const player = this.player;
         const sprite = player.sprite;
@@ -220,13 +220,13 @@ export default class GameScene extends Phaser.Scene {
         const map = this.layers.item;
         const pointerTileX = map.worldToTileX(worldPoint.x);
         const pointerTileY = map.worldToTileY(worldPoint.y);
-        
+
         const marker = this.marker;
         marker.x = map.tileToWorldX(pointerTileX);
         marker.y = map.tileToWorldY(pointerTileY);
 
         const proximity = Phaser.Math.Distance.Between(marker.x, marker.y, player.sprite.x, player.sprite.y) < 60;
-        
+
         let moved = false;
 
         if((map.getTileAt(pointerTileX, pointerTileY) && proximity) || this.building) {
@@ -241,8 +241,7 @@ export default class GameScene extends Phaser.Scene {
                 this.marker.clear();
                 this.marker.lineStyle(2, 0x000000, 1);
                 this.marker.strokeRect(0, 0, map.tileWidth * this.layers.background.scaleX, map.tileHeight * this.layers.background.scaleY);
-            }
-            else {
+            } else {
                 this.marker.clear();
                 this.marker.lineStyle(2, 0x770000, 1);
                 this.marker.strokeRect(0, 0, map.tileWidth * this.layers.background.scaleX, map.tileHeight * this.layers.background.scaleY);
@@ -287,8 +286,7 @@ export default class GameScene extends Phaser.Scene {
         if (cursors.left.isDown || this.keys.leftKey.isDown) {
             sprite.setVelocityX(-100);
             moved = true;
-        }
-        else if (cursors.right.isDown || this.keys.rightKey.isDown) {
+        } else if (cursors.right.isDown || this.keys.rightKey.isDown) {
             sprite.setVelocityX(100);
             moved = true;
         }
@@ -368,7 +366,7 @@ export default class GameScene extends Phaser.Scene {
         let {source, dest} = opts;
 
         let projectile = this.projectiles.get(source.x, source.y, 'tiles', ItemResolver('animation_bullet_normal').fg); //this.physics.add.image(player.sprite.x-8, player.sprite.y-8, 'tiles', ItemResolver('bullet_crossbow').fg);
-            
+
         if(projectile) {
             projectile.enableBody(true, source.x, source.y).setActive(true).setVisible(true);
             projectile.setCollideWorldBounds(true);
@@ -391,18 +389,18 @@ export default class GameScene extends Phaser.Scene {
         }
     }
     setupMap(id=0, width=64, height=64) {
-        let map = this.make.tilemap({tileWidth: TILE_WIDTH, tileHeight: TILE_HEIGHT, width: width, height: height});
-        
+        let map = this.make.tilemap({id: id, tileWidth: TILE_WIDTH, tileHeight: TILE_HEIGHT, width: width, height: height});
+
         let tileset = map.addTilesetImage('tiles', 'tiles', TILE_WIDTH, TILE_HEIGHT);
-        
+
         map.setLayer(0);
 
         let backgroundLayer = map.createBlankDynamicLayer('background', tileset, 0,0);
         this.layers.background = backgroundLayer;
-        
+
         map.fill(null, 0, 0, width-1, height-1);
         map.randomize(0, 0, map.width, map.height, [640, 640, 640, 640, 640, 640, 640, 640, 640, 641]);
-        
+
         this.map = map;
 
         let structureLayer = map.createBlankDynamicLayer('structures', tileset, 0, 0);
@@ -415,7 +413,7 @@ export default class GameScene extends Phaser.Scene {
         this.layers.structure = structureLayer;
 
         let itemMap = this.make.tilemap({tileWidth: TILE_WIDTH, tileHeight: TILE_HEIGHT, width: width, height:height});
-        
+
         let itemTileset = itemMap.addTilesetImage('tiles', 'tiles', TILE_WIDTH, TILE_HEIGHT);
         itemMap.setLayer(2);
         let itemLayer = itemMap.createBlankDynamicLayer('items', itemTileset, 0,0);
@@ -443,14 +441,14 @@ export default class GameScene extends Phaser.Scene {
                 this.layers.background.putTileAt(map.ground[y][x], x, y);
             }
         }*/
-        let collisionMap = new Array(height).fill(0).map(_ => new Array(width).fill(0));
+        let collisionMap = new Array(height).fill(0).map(() => new Array(width).fill(0));
         let ground = map.ground.map((r,y) => {
             return r.map((t,x) => {
                 let i = ItemResolver(t.id);
                 if(!i.bg && i.fg) {
                     return new Phaser.Tilemaps.Tile(this.layers.background, i.fg);
                 } else if(i.bg && i.fg) {
-                    
+
                     map.structure.push({id: t.id, tile: i.fg, x, y});
                     return new Phaser.Tilemaps.Tile(this.layers.background, i.bg);
                 } else if(i.bg && !i.fg) {
@@ -460,12 +458,12 @@ export default class GameScene extends Phaser.Scene {
         });
         console.log(map.structure);
         this.layers.background.putTilesAt(ground, 0, 0);
-        
+
         map.structure.forEach(s => {
             let t = new Phaser.Tilemaps.Tile(this.layers.structure, s.tile||ItemResolver(s.id).fg);
             if(TerrainData[s.id]) {
                 if(TerrainData[s.id].move_cost === 0) {
-                    collisionMap[s.y][s.x] = 1;    
+                    collisionMap[s.y][s.x] = 1;
                 }
                 t.properties = TerrainData[s.id];
             }
@@ -496,7 +494,7 @@ export default class GameScene extends Phaser.Scene {
                 let hasComponents = recipe.components.filter(component => {
                     return player.inventory.has(component[0], component[1]);
                 }).length>0;
-                
+
                 if(hasComponents) {
                     let item = new Item({
                         id: item_id
@@ -517,7 +515,7 @@ export default class GameScene extends Phaser.Scene {
                         item.tile = 2246; // ItemResolver(item_id).additional_tiles
                     } else if(adjacent.length === 1) {
                         // end
-                        
+
                     }
                     let itemTile = new Phaser.Tilemaps.Tile(this.layers.item, item.tile, item.x, item.y);
                     itemTile.angle = item.angle||0;
@@ -535,10 +533,10 @@ export default class GameScene extends Phaser.Scene {
     }
     startBuilding(recipe) {
         this.building = recipe;
-        
+
         this.ghostBuilding = this.add.image(this.marker.x + this.marker.width / 2, this.marker.y + this.marker.height / 2, 'tiles', ItemResolver(this.building.post_terrain).fg);
         this.ghostBuilding.setOrigin(0.5);
-        
+
         this.ghostBuilding.setAlpha(0.4);
         this.ghostBuilding.x = this.marker.x;
         this.ghostBuilding.y = this.marker.y;
@@ -554,7 +552,7 @@ export default class GameScene extends Phaser.Scene {
         this.marker.clear();
         this.marker.lineStyle(2, 0x000000, 1);
         this.marker.strokeRect(0, 0, this.layers.item.tileWidth * this.layers.background.scaleX, this.layers.item.tileHeight * this.layers.background.scaleY);
-        this.building = false; 
+        this.building = false;
         UI.setState({
             building: false
         })

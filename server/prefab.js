@@ -7,13 +7,11 @@ class Prefab {
         let offsety = args.offsety||0;
         let mapData = require('./house04.json');
 
-        if (mapData.length!==1)
-        {
+        if (mapData.length!==1) {
                 console.error("error: json map file need 1 entry. this file provides", mapData.length);
                 process.exit(1);
         }
-        if (mapData[0].type !== "mapgen")
-        {
+        if (mapData[0].type !== "mapgen") {
                 console.error("error: json map file is not type mapgen. this file provides", mapData[0].type);
                 process.exit(1);
         }
