@@ -1,0 +1,5 @@
+{
+    "ACTION_MOVE": "move",
+    "ACTION_OPEN": "open",
+    "ACTION_CLOSE": "close"
+}

@@ -7,6 +7,8 @@ import { LivingEntity } from './entity/entity';
 
 import Network from './network';
 
+import ACTIONS from '../src/actions.json';
+
 import RawTerrainData from '../data/json/terrain.json';
 const TerrainData = {};
 
@@ -108,7 +110,7 @@ export default class GameScene extends Phaser.Scene {
                     delete this.clientMap[client.id];
                     delete this.clients[client.id];
                 }
-            }).on('move', data => {
+            }).on(ACTIONS.ACTION_MOVE, data => {
                 if(data && data.player.id && this.clientMap[data.player.id]) {
                     let player = this.clientMap[data.player.id];
                     player.setPosition(data.player.x, data.player.y);
@@ -366,7 +368,7 @@ export default class GameScene extends Phaser.Scene {
             });*/
         }
         if(moved) {
-            Network.send('move', {player: {x: Math.round(player.sprite.x), y: Math.round(player.sprite.y)}});
+            Network.send(ACTIONS.ACTION_MOVE, {player: {x: Math.round(player.sprite.x), y: Math.round(player.sprite.y)}});
         }
         Object.keys(this.clientMap).forEach(k => {
             this.clientMap[k].update();

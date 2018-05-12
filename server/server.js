@@ -4,6 +4,7 @@ import {Player} from '../src/entity/player';
 
 import {CraftingRecipes} from '../src/crafting';
 
+import {ACTIONS} from '../src/actions.json';
 
 const express = require('express');
 const cors = require('cors');
@@ -179,11 +180,11 @@ io.on('connection', (socket) => {
             map: instances[socket.player.instance].getMap()
         })
     });
-    socket.on('move', (msg) => {
+    socket.on(ACTIONS.ACTION_MOVE, (msg) => {
         msg.player.id = socket.player.id;
         socket.player.x = msg.player.x;
         socket.player.y = msg.player.y;
-        socket.broadcast.emit('move', msg);
+        socket.broadcast.emit(ACTIONS.ACTION_MOVE, msg);
     });
     socket.on('fire', (msg) => {
         msg.source.x = socket.player.x;
