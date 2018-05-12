@@ -7,6 +7,8 @@ import {CraftingRecipes} from '../src/crafting';
 import ACTIONS from '../src/actions.json';
 import Prefab from './prefab';
 
+import {FurnitureData, TerrainData} from '../src/tiles';
+
 const express = require('express');
 const cors = require('cors');
 const app = express();
@@ -21,7 +23,7 @@ class Instance {
         this.id = lastInstanceId++;
         let basemap = new Array(height).fill(0).map(_ => new Array(width).fill(-1));
         // direction can be 0,90,180,270 degrees rotation
-        let pf = new Prefab({basemap: basemap, direction: 90, offsetx: 0, offsety: 0});
+        let pf = new Prefab({basemap: basemap, direction: 0, offsetx: 0, offsety: 0});
         this.map = { width, height, ground:pf.ground, structure: pf.structure, item: pf.item};
         this.created = new Date();
     }
@@ -114,7 +116,52 @@ io.on('connection', (socket) => {
         socket.player.x = msg.player.x;
         socket.player.y = msg.player.y;
         socket.broadcast.emit(ACTIONS.ACTION_MOVE, msg);
+    })
+    .on(ACTIONS.ACTION_OPEN, (msg) => {
+        let i = TerrainData[map.ground[msg.y][msg.x].id];
+        console.log(i);
+        if(i && i.open) {
+            map.ground[msg.y][msg.x] = {id: i.open};
+            socket.emit('setTile', {
+                x: msg.x,
+                y: msg.y,
+                layer: 'structure',
+                item: {id: i.open}
+            });
+            socket.broadcast.emit('setTile', {
+                x: msg.x,
+                y: msg.y,
+                layer: 'structure',
+                item: {id: i.open}
+            });
+        }
+
+    })
+    .on(ACTIONS.ACTION_CLOSE, (msg) => {
+        let t = map.ground[msg.y][msg.x];
+        if(!t) {
+            return;
+        }
+        let i = TerrainData[t.id];
+        console.log(i);
+        if(i && i.close) {
+            map.ground[msg.y][msg.x] = {id: i.close};
+            socket.emit('setTile', {
+                x: msg.x,
+                y: msg.y,
+                layer: 'structure',
+                item: {id: i.close}
+            });
+            socket.broadcast.emit('setTile', {
+                x: msg.x,
+                y: msg.y,
+                layer: 'structure',
+                item: {id: i.close}
+            });
+        }
+
     });
+
     socket.on('fire', (msg) => {
         msg.source.x = socket.player.x;
         msg.source.y = socket.player.y;
