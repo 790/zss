@@ -4,7 +4,7 @@ import {Player} from '../src/entity/player';
 
 import {CraftingRecipes} from '../src/crafting';
 
-import {ACTIONS} from '../src/actions.json';
+import ACTIONS from '../src/actions.json';
 import Prefab from './prefab';
 
 const express = require('express');
@@ -21,7 +21,7 @@ class Instance {
         this.id = lastInstanceId++;
         let basemap = new Array(height).fill(0).map(_ => new Array(width).fill(-1));
         // direction can be 0,90,180,270 degrees rotation
-        let pf = new Prefab({basemap: basemap, direction: 0, offsetx: 0, offsety: 0});
+        let pf = new Prefab({basemap: basemap, direction: 90, offsetx: 0, offsety: 0});
         this.map = { width, height, ground:pf.ground, structure: pf.structure, item: pf.item};
         this.created = new Date();
     }
