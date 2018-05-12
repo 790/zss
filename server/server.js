@@ -4,6 +4,7 @@ import {Player} from '../src/entity/player';
 
 import {CraftingRecipes} from '../src/crafting';
 
+import Prefab from './prefab';
 
 const express = require('express');
 const cors = require('cors');
@@ -11,110 +12,16 @@ const app = express();
 const server = require('http').Server(app);
 const io = require('socket.io').listen(server);
 
-const itemData = require('../assets/ChestHoleTileset/tile_config.json');
-const mapData = require('./house04.json');
-if (mapData.length!==1)
-{
-        console.error("error: json map file need 1 entry. this file provides", mapData.length);
-        process.exit(1);
-}
-if (mapData[0].type !== "mapgen")
-{
-        console.error("error: json map file is not type mapgen. this file provides", mapData[0].type);
-        process.exit(1);
-}
-
-
 app.use(cors());
-
+const itemData = require('../assets/ChestHoleTileset/tile_config.json');
 let lastInstanceId = 0;
 class Instance {
-    constructor(width=32, height=32, direction=0, offsetx=0, offsety=0) {
+    constructor(width=32, height=32) {
         this.id = lastInstanceId++;
-        let     x,y,w,h,
-                obj=mapData[0].object;
-                w = obj.rows[0].length;
-                h = obj.rows.length;
-        let     buf_rows = [];
-        let     structures = []
-        let newx, newy;
-        buf_rows = new Array(height).fill(0).map(_ => new Array(width).fill(-1));
-        for(y=0;y<obj.rows.length;y++) {
-            for(x=0;x<obj.rows[y].length;x++) {
-                let tile_char = obj.rows[y][x];
-                let tile_name = obj.terrain[tile_char];
-                if(tile_name === undefined) {
-                        tile_name = obj.fill_ter;
-                }
-                switch (direction) {
-                    case 0:
-                        //buf_rows[y][x] = {id: tile_name};
-                        newx = x;
-                        newy = y;
-                        break;
-                    case 90:
-                        //buf_rows[x][w-y-1] = {id: tile_name};
-                        newx = w-y-1;
-                        newy = x;
-                        break;
-                    case 180:
-                        //buf_rows[w-y-1][h-x-1] = {id: tile_name};
-                        newx = h-x-1;
-                        newy = w-y-1;
-                        break;
-                    case 270:
-                        //buf_rows[h-x-1][y] = {id: tile_name};
-                        newx = y;
-                        newy = h-x-1;
-                        break;
-                    default:
-                        newx = x;
-                        newy = y;
-                }
-                newx+=offsetx;
-                newy+=offsety;
-                if(obj.furniture[tile_char]) {
-                    structures.push({
-                        id: obj.furniture[tile_char], x:newx, y:newy
-                    });
-                }
-                buf_rows[newy][newx] = {id: tile_name};
-            }
-        }
-
-        this.map = { width, height, ground:buf_rows,structure: structures, item: []};
-
-        /*
-            map properties.
-
-            ground is a NxN 2d array. rows are Y, columns are X.
-            Each tile should look like: {
-                id: 't_floor'
-            }. A 2x2 example with grass in the bottom right: [
-                [ {id: 't_floor'}, {id: 't_floor'} ],
-                [ {id: 't_floor'}, {id: 't_grass'} ]
-            ]
-
-            structure is a 1d array of tiles which will have collision applied.
-            [
-                { id: 't_wall', x: 10, y: 12 },
-                { id: 'f_chair', x: 40, y: 40 }
-            ]
-
-            item is same as structure but for items that can be picked up.
-            [
-                { id: '2x4', x: 20, y: 20 },
-                { id: 'nail', x: 20, y: 20, count: 10 }
-            ]
-        */
-        /*this.map = {
-            width,
-            height,
-            ground: new Array(height).fill(0).map(_ => new Array(width).fill(-1)),
-            structure: [],
-            item: []
-        };*/
-
+        let basemap = new Array(height).fill(0).map(_ => new Array(width).fill(-1));
+        // direction can be 0,90,180,270 degrees rotation
+        let pf = new Prefab({basemap: basemap, direction: 0, offsetx: 0, offsety: 0});
+        this.map = { width, height, ground:pf.ground, structure: pf.structure, item: pf.item};
         this.created = new Date();
     }
     getMap() {
