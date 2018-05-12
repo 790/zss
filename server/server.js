@@ -5,6 +5,7 @@ import {Player} from '../src/entity/player';
 import {CraftingRecipes} from '../src/crafting';
 
 import {ACTIONS} from '../src/actions.json';
+import Prefab from './prefab';
 
 const express = require('express');
 const cors = require('cors');
@@ -12,88 +13,16 @@ const app = express();
 const server = require('http').Server(app);
 const io = require('socket.io').listen(server);
 
-const itemData = require('../assets/ChestHoleTileset/tile_config.json');
-const mapData = require('./house04.json');
-if (mapData.length!==1)
-{
-        console.error("error: json map file need 1 entry. this file provides", mapData.length);
-        process.exit(1);
-}
-if (mapData[0].type !== "mapgen")
-{
-        console.error("error: json map file is not type mapgen. this file provides", mapData[0].type);
-        process.exit(1);
-}
-
-
 app.use(cors());
-
+const itemData = require('../assets/ChestHoleTileset/tile_config.json');
 let lastInstanceId = 0;
 class Instance {
     constructor(width=32, height=32) {
         this.id = lastInstanceId++;
-let     x,y,w,h,
-        obj=mapData[0].object;
-        w = obj.rows[0].length;
-        h = obj.rows.length;
-let     buf_rows = [];
-let structures = [];
-buf_rows = new Array(height).fill(0).map(_ => new Array(width).fill(-1));
-for(y=0;y<obj.rows.length;y++) {
-        //let buf_row = [];
-        for(x=0;x<obj.rows[y].length;x++) {
-                let tile_char = obj.rows[y][x];
-                let tile_name = obj.terrain[tile_char];
-                if(tile_name === undefined) {
-                        tile_name = obj.fill_ter;
-                }
-                // x scanning and filling
-                //buf_row.push({id: tile_name});
-                if(obj.furniture[tile_char]) {
-                    structures.push({
-                        id: obj.furniture[tile_char], x, y
-                    });
-                }
-		buf_rows[y][x] = {id: tile_name};
-        }
-        //buf_rows.push(buf_row);
-}
-
-this.map = { width, height, ground:buf_rows,structure: structures, item: []};	    
-
-
-        /*
-            map properties.
-
-            ground is a NxN 2d array. rows are Y, columns are X.
-            Each tile should look like: {
-                id: 't_floor'
-            }. A 2x2 example with grass in the bottom right: [
-                [ {id: 't_floor'}, {id: 't_floor'} ],
-                [ {id: 't_floor'}, {id: 't_grass'} ]
-            ]
-
-            structure is a 1d array of tiles which will have collision applied.
-            [
-                { id: 't_wall', x: 10, y: 12 },
-                { id: 'f_chair', x: 40, y: 40 }
-            ]
-
-            item is same as structure but for items that can be picked up.
-            [
-                { id: '2x4', x: 20, y: 20 },
-                { id: 'nail', x: 20, y: 20, count: 10 }
-            ]
-        */
-        /*this.map = {
-            width,
-            height,
-            ground: new Array(height).fill(0).map(_ => new Array(width).fill(-1)),
-            structure: [],
-            item: []
-        };*/
-
-
+        let basemap = new Array(height).fill(0).map(_ => new Array(width).fill(-1));
+        // direction can be 0,90,180,270 degrees rotation
+        let pf = new Prefab({basemap: basemap, direction: 0, offsetx: 0, offsety: 0});
+        this.map = { width, height, ground:pf.ground, structure: pf.structure, item: pf.item};
         this.created = new Date();
     }
     getMap() {
@@ -224,7 +153,7 @@ io.on('connection', (socket) => {
                 if(x.length) {
                     player.inventory.remove(x[0][0], x[0][1]);
                 }
-                
+
             });
             map.structure.push({
                 x: msg.x, y:msg.y, tile: msg.item.tile
@@ -259,9 +188,9 @@ io.on('connection', (socket) => {
 function getClientList(so) {
     return Object.keys(io.sockets.connected).map(s => {
             let p = {...io.sockets.connected[s].player};
-            if(so.id===io.sockets.connected[s].id) { 
+            if(so.id===io.sockets.connected[s].id) {
                 p.me = true;
             }
-            return p; 
+            return p;
         }).filter(e => e);
 }
