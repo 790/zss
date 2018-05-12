@@ -211,7 +211,6 @@ export default class GameScene extends Phaser.Scene {
 
     }
     update(time, delta) {
-
         const cursors = this.input.keyboard.createCursorKeys();
         const player = this.player;
         const sprite = player.sprite;
