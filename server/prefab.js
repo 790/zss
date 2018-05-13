@@ -1,23 +1,32 @@
-
+const fs = require('fs');
+const pathToPrefabs = '../data/json/mapgen/';
 class Prefab {
     constructor(args) {
         let basemap = args.basemap||[];
         let direction = args.direction||0;
         let offsetx = args.offsetx||0;
         let offsety = args.offsety||0;
-        let mapData = require('./house04.json');
-
+        let mapfilename = args.mapfilename||-1;
+        let mapData = null;
+        if(mapfilename === -1){
+            mapData = this.getMapDataRandom();
+        } else {
+            mapData = this.getMapDataByName(mapfilename);
+        }
+        /*
         if (mapData.length!==1) {
                 console.error("error: json map file need 1 entry. this file provides", mapData.length);
                 process.exit(1);
         }
-        if (mapData[0].type !== "mapgen") {
-                console.error("error: json map file is not type mapgen. this file provides", mapData[0].type);
-                process.exit(1);
+        */
+        let foundPrefab = this.getMapDataPrefabIndex(mapData);
+        if(foundPrefab === -1) {
+            console.log("fuckknows why foundPrefab is -1");
+            process.exit(1);
         }
         let     x,y,w,h,
-                obj=mapData[0].object;
-                w = obj.rows[0].length;
+                obj=mapData[foundPrefab].object;
+                w = obj.rows[foundPrefab].length;
                 h = obj.rows.length;
 
         let     structures = []
@@ -62,6 +71,44 @@ class Prefab {
             }
         }
         return {ground: basemap, structure: structures, item: []};
+    }
+    gri(min,max) {
+            min = Math.ceil(min);
+            max = Math.floor(max);
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+    getMapDataRandom() {
+        let maplist = fs.readdirSync(__dirname +'//'+ pathToPrefabs);
+        let randomnumber = this.gri(0, maplist.length-1);
+        let mapname = maplist[randomnumber];
+        let mapData = require(__dirname +'//'+ pathToPrefabs+'//'+mapname);
+        let foundPrefab = this.getMapDataPrefabIndex(mapData);
+        if (foundPrefab === -1) {
+                console.error("error: json map file is not type mapgen. trying another..");
+                mapData = this.getMapDataRandom();
+        }
+        return mapData;
+    }
+    getMapDataByName(mapfilename) {
+        let mapfile = __dirname +'//'+ pathToPrefabs + '//' + mapfilename;
+        let mapData = require(mapfile);
+        console.log("loading map:", mapfilename);
+        let foundPrefab = this.getMapDataPrefabIndex(mapData);
+        if (foundPrefab === -1) {
+            console.error("error: json map file is not type mapgen. quitting.");
+            process.exit(1);
+        }
+        return mapData;
+    }
+    getMapDataPrefabIndex(mapData){
+        let foundPrefab = -1;
+        mapData.forEach(function(object, index, _) {
+            if(object.type == "mapgen") {
+                foundPrefab = index;
+                return;
+            }
+        });
+        return foundPrefab;
     }
 }
 
