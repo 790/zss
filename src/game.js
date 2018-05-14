@@ -160,7 +160,7 @@ export default class GameScene extends Phaser.Scene {
         this.entityGroup = this.physics.add.group();
 
         /* Add some random enemies */
-        for(let i = 0; i < 1; i++) {
+        for(let i = 0; i < 10; i++) {
             let enemy = new LivingEntity({
                 x: 100, y:100, name: 'enemy', tile: ItemResolver('mon_zombie_2').fg
             });
@@ -347,10 +347,22 @@ export default class GameScene extends Phaser.Scene {
             }
         }
         if(Phaser.Input.Keyboard.JustDown(this.keys.fireKey)) {
-            Network.send('fire', {
-                source: {x: player.sprite.x, y: player.sprite.y},
-                dest: {x: this.input.x + this.cameras.main.scrollX, y: this.input.y + this.cameras.main.scrollY}
+            let nearest = {index: -1, distance: 99999, x:-1, y:-1};
+            Object.entries(this.entities).forEach(([index, entity]) => {
+                let distance = Phaser.Math.Distance.Between(entity.sprite.x, entity.sprite.y, player.sprite.x, player.sprite.y);
+                if (distance < nearest.distance){
+                    nearest.distance = distance;
+                    nearest.index = index;
+                    nearest.x = entity.sprite.x;
+                    nearest.y = entity.sprite.y;
+                }
             });
+            if(nearest.index !== -1) {
+                Network.send('fire', {
+                    source: {x: player.sprite.x, y: player.sprite.y},
+                    dest: {x: nearest.x, y: nearest.y}
+                });
+            }
             /*this.fireProjectile({
                 source: {x: player.sprite.x, y: player.sprite.y},
                 dest: {x: this.input.x + this.cameras.main.scrollX, y: this.input.y + this.cameras.main.scrollY}
