@@ -13,24 +13,17 @@ class Prefab {
         } else {
             mapData = this.getMapDataByName(mapfilename);
         }
-        /*
-        if (mapData.length!==1) {
-                console.error("error: json map file need 1 entry. this file provides", mapData.length);
-                process.exit(1);
-        }
-        */
         let foundPrefab = this.getMapDataPrefabIndex(mapData);
         if(foundPrefab === -1) {
             console.log("fuckknows why foundPrefab is -1");
             process.exit(1);
         }
-        let     x,y,w,h,
-                obj=mapData[foundPrefab].object;
-                w = obj.rows[foundPrefab].length;
-                h = obj.rows.length;
 
-        let     structures = []
-        let     newx, newy;
+        let     obj=mapData[foundPrefab].object,
+                w = obj.rows[foundPrefab].length,
+                h = obj.rows.length,
+                structures = [],
+                newx, newy, x, y;
 
         for(y=0;y<obj.rows.length;y++) {
             for(x=0;x<obj.rows[y].length;x++){

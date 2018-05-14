@@ -182,6 +182,7 @@ export default class GameScene extends Phaser.Scene {
 
         this.ghostBuilding = null;
 
+        this.keys.doorKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
         this.keys.buildKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
         this.keys.upKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
         this.keys.downKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
@@ -223,6 +224,8 @@ export default class GameScene extends Phaser.Scene {
         const marker = this.marker;
         marker.x = map.tileToWorldX(pointerTileX);
         marker.y = map.tileToWorldY(pointerTileY);
+        player.sprite.tileX = map.worldToTileX(player.sprite.x);
+        player.sprite.tileY = map.worldToTileX(player.sprite.y);
 
         const proximity = Phaser.Math.Distance.Between(marker.x, marker.y, player.sprite.x, player.sprite.y) < 60;
 
@@ -352,6 +355,25 @@ export default class GameScene extends Phaser.Scene {
                 source: {x: player.sprite.x, y: player.sprite.y},
                 dest: {x: this.input.x + this.cameras.main.scrollX, y: this.input.y + this.cameras.main.scrollY}
             });*/
+        }
+
+        if(Phaser.Input.Keyboard.JustDown(this.keys.doorKey)) {
+            let cross = {
+                Up:    this.layers.structure.getTileAt(player.sprite.tileX, player.sprite.tileY -1),
+                Down:  this.layers.structure.getTileAt(player.sprite.tileX, player.sprite.tileY +1),
+                Left:  this.layers.structure.getTileAt(player.sprite.tileX -1, player.sprite.tileY),
+                Right: this.layers.structure.getTileAt(player.sprite.tileX +1, player.sprite.tileY),
+                Same:  this.layers.structure.getTileAt(player.sprite.tileX, player.sprite.tileY)
+            };
+            Object.entries(cross).forEach(([_, tile]) => {
+                if((tile !== null)&&(tile.properties.open || tile.properties.close)) {
+                        if(tile.properties.open) {
+                            Network.send(ACTIONS.ACTION_OPEN, {x: tile.x, y: tile.y});
+                        } else if(tile.properties.close) {
+                            Network.send(ACTIONS.ACTION_CLOSE, {x: tile.x, y: tile.y});
+                        }
+                }
+            });
         }
         if(moved) {
             Network.send(ACTIONS.ACTION_MOVE, {player: {x: Math.round(player.sprite.x), y: Math.round(player.sprite.y)}});
