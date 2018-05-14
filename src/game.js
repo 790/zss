@@ -133,6 +133,9 @@ export default class GameScene extends Phaser.Scene {
                 this.fireProjectile(data);
             }).on('action_error', data => { /* Sent by server when we failed to do something */
                 console.log("[ACTION ERROR]", data);
+                UI.setState({
+                    errorText: data.msg
+                });
             });
         });
         this.setupMap();

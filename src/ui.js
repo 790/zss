@@ -54,6 +54,13 @@ class UI {
         this.buildingText = this.game.add.text(380, 400, 'Building', {align: 'center'});
         this.buildingText.setScrollFactor(0,0);
         
+        this.errorText = this.game.add.text(380, 480, 'Error', {align: 'center', fill: '#cc0000'}).setFontStyle('bold').setBackgroundColor('#000000af');
+        this.errorText.setScrollFactor(0,0);
+        this.errorTextTween = this.game.tweens.add({
+            targets: this.errorText,
+            alpha: 0,
+            delay: 1000
+        });
         /*this.game.input.on('gameobjectdown', function (pointer, gameObject) {
             console.log("afaf", pointer, gameObject);
         }, this);
@@ -224,6 +231,11 @@ class UI {
         }
     }
     setState(args) {
+        if(args.errorText) {
+            this.errorText.setText(args.errorText);
+            this.errorText.setAlpha(1);
+            this.errorTextTween.restart();
+        }
         this.uiState = {...this.uiState, ...args};
     }
 }
