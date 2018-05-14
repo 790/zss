@@ -7,12 +7,14 @@ class UI {
     constructor(args) {
         this.uiState = {
             inventoryOpen: false,
-            inventoryCache: null
+            inventoryCache: null,
+            debug: true
         }
         this.actionEmitter = new Phaser.EventEmitter();
     }
     create(args) {
         this.game = args.game;
+        this.layers = args.layers;
         this.hpText = this.game.add.text(10, 10, 'HP: 0', { font: "20px Arial", fill: "#ffffff", align: "left" });
         this.hpText.setScrollFactor(0,0);
 
@@ -20,7 +22,7 @@ class UI {
         this.inventoryContainer.fixedToCamera = true;
         this.inventoryContainer.setScrollFactor(0,0);
         let invBox = this.game.make.graphics();
-        
+
         invBox.fillStyle(0x0000dd, 0.5);
         invBox.fillRect(0, 0, 100, 332);
         invBox.setInteractive();
@@ -34,7 +36,7 @@ class UI {
         this.inventoryContainer.add(this.game.add.text(0, 0, 'Inventory', {align: 'center'}));
         this.inventoryContainer.add(itemBoxes);
 
-        
+
         this.craftingContainer = this.game.add.container(this.game.cameras.main.width - 100, 64);
         this.craftingContainer.fixedToCamera = true;
         this.craftingContainer.setScrollFactor(0,0);
@@ -53,7 +55,7 @@ class UI {
 
         this.buildingText = this.game.add.text(380, 400, 'Building', {align: 'center'});
         this.buildingText.setScrollFactor(0,0);
-        
+
         this.errorText = this.game.add.text(380, 480, 'Error', {align: 'center', fill: '#cc0000'}).setFontStyle('bold').setBackgroundColor('#000000af');
         this.errorText.setScrollFactor(0,0);
         this.errorTextTween = this.game.tweens.add({
@@ -67,9 +69,11 @@ class UI {
         this.game.input.on('gameobjectover', function (pointer, gameObject) {
 
             gameObject.setTint(0x7878ff);
-    
+
         });*/
-    
+        this.debugText = this.game.add.text(0, 0, '', {font: '12px monospace', fill: '#ffffff'}).setBackgroundColor('#000000af');
+        this.debugText.setScrollFactor(0,0);
+        this.debugText.visible = false;
     }
     updateInventory(inv) {
         /* Updates the item sprites for the inventory display */
@@ -141,7 +145,7 @@ class UI {
             const hasComponents = comps.filter(r => {
                 return r.filter(component => inv.has(component[0], component[1])).length>0
             }).length==comps.length;
-            
+
             return hasComponents?cr:null;
         });
         console.log(r, comps);
@@ -154,7 +158,7 @@ class UI {
                 line.fillStyle((i%2===0) ? 0xcccccc : 0xdddddd);
                 line.fillRect(0, offsetY + i*16, 100, 16);
                 lineC.add(line);
-        
+
                 let s = this.game.add.sprite(0, offsetY + i*16, 'tiles', ItemResolver(recipe.post_terrain).fg);
                 s.setScale(0.5, 0.5);
                 s.setOrigin(0,0);
@@ -164,15 +168,15 @@ class UI {
                 line.setInteractive(new Phaser.Geom.Rectangle(0, offsetY +2 + i*16, 100, 16), Phaser.Geom.Rectangle.Contains);
                 line.setScrollFactor(0,0);
                 line.on('pointerover', p => {
-                    
+
                     t.setColor('#ff0000');
                 })
                 line.on('pointerout', p => {
-                    
+
                     t.setColor('#000');
                 })
                 line.on('pointerdown', p => {
-                    
+
                     this.actionEmitter.emit('build', {
                         recipe: recipe
                     });
@@ -206,14 +210,13 @@ class UI {
                 this.craftingContainer.add(craftBoxes);
                 this.craftBoxes = craftBoxes;
             }
-            
+
         }
         if(this.uiState.inventoryOpen) {
             this.inventoryContainer.visible = true;
         } else {
             this.inventoryContainer.visible = false;
         }
-        
         if(this.uiState.craftingOpen) {
             this.buildingText.visible = true;
             this.craftingContainer.visible = true;
@@ -224,6 +227,33 @@ class UI {
             this.buildingText.visible = false;
             this.buildingText.setText('Building');
             this.craftingContainer.visible = false;
+        }
+        if(this.uiState.debug) {
+            const worldPoint = this.game.input.activePointer.positionToCamera(this.game.cameras.main);
+            const layers = ['background','structure','item'];
+            let tiles = {};
+            layers.map(i => {
+                console.log(data.layers);
+                const map = data.layers[i];
+                const pointerTileX = map.worldToTileX(worldPoint.x);
+                const pointerTileY = map.worldToTileY(worldPoint.y);
+
+                tiles[i] = map.getTileAt(pointerTileX, pointerTileY);
+            })
+            if(tiles) {
+                this.debugText.setText(layers.map((l,i) => {
+                    let t = tiles[l];
+                    if(t) {
+                        return l+': '+tiles[l].properties.id;// + '\n'+JSON.stringify(tiles[l].properties, null, 2);
+                    } else {
+                        return l+': null';
+                    }
+
+                }).join('\n'))
+                this.debugText.visible = true;
+            }
+        } else {
+            this.debugText.visible = false;
         }
     }
     setState(args) {

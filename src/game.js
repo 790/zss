@@ -209,13 +209,13 @@ export default class GameScene extends Phaser.Scene {
 
         const worldPoint = this.input.activePointer.positionToCamera(this.cameras.main);
         const map = this.layers.item;
-        
+
         this.handleInput();
 
         Object.keys(this.clientMap).forEach(k => {
             this.clientMap[k].update();
         })
-        UI.update({player:player});
+        UI.update({player:player, layers: this.layers});
     }
     fireProjectile(opts) {
         let {source, dest} = opts;
@@ -300,15 +300,22 @@ export default class GameScene extends Phaser.Scene {
         let ground = map.ground.map((r,y) => {
             return r.map((t,x) => {
                 let i = ItemResolver(t.id);
+                let tile = null;
                 if(!i.bg && i.fg) {
-                    return new Phaser.Tilemaps.Tile(this.layers.background, i.fg);
+
+                    tile = new Phaser.Tilemaps.Tile(this.layers.background, i.fg);
+                    tile.properties = TerrainData[t.id];
                 } else if(i.bg && i.fg) {
 
                     map.structure.push({id: t.id, tile: i.fg, x, y});
-                    return new Phaser.Tilemaps.Tile(this.layers.background, i.bg);
+                    tile = new Phaser.Tilemaps.Tile(this.layers.background, i.bg);
+                    tile.properties = TerrainData[t.id];
                 } else if(i.bg && !i.fg) {
-                    return new Phaser.Tilemaps.Tile(this.layers.background, i.bg);
+
+                    tile = new Phaser.Tilemaps.Tile(this.layers.background, i.bg);
+                    tile.properties = TerrainData[t.id];
                 }
+                return tile;
             })
         });
         console.log(map.structure);
@@ -430,6 +437,7 @@ export default class GameScene extends Phaser.Scene {
         this.keys.rightKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
         this.keys.toggleInventory = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
         this.keys.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
+        this.keys.toggleDebug = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F1);
         this.keys.escapeKey = [
             this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC),
             this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q)
@@ -533,7 +541,11 @@ export default class GameScene extends Phaser.Scene {
                 inventoryOpen: !UI.uiState.inventoryOpen
             })
         }
-
+        if(Phaser.Input.Keyboard.JustDown(this.keys.toggleDebug)) {
+            UI.setState({
+                debug: !UI.uiState.debug
+            })
+        }
         /* Rotate building or ghost building */
         if(Phaser.Input.Keyboard.JustDown(this.keys.rotateKey)) {
             let t;
@@ -585,7 +597,7 @@ export default class GameScene extends Phaser.Scene {
                 'open',
                 'close'
             ];
-            for(let action of useActions) {   
+            for(let action of useActions) {
                 if(action === 'open' || action === 'close') {
                     let performedAction = false;
                     let cross = {
