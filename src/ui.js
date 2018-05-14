@@ -143,10 +143,6 @@ class UI {
             }).length==comps.length;
             
             return hasComponents?cr:null;
-            if(comps.length === comps.filter(c => inv.has(c[0], c[1])).length) {
-                return cr;
-            }
-            
         });
         console.log(r, comps);
         for(let i = 0; i < 10; i++) {

@@ -185,19 +185,7 @@ export default class GameScene extends Phaser.Scene {
 
         this.ghostBuilding = null;
 
-        this.keys.doorKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-        this.keys.buildKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
-        this.keys.upKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
-        this.keys.downKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
-        this.keys.leftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
-        this.keys.rightKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
-        this.keys.toggleInventory = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
-        this.keys.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
-        this.keys.escapeKey = [
-            this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC),
-            this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q)
-        ];
-        this.keys.rotateKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
+        this.setupInput();
 
         UI.create({game: this});
         UI.actionEmitter.on('build', this.onBuild);
@@ -221,178 +209,9 @@ export default class GameScene extends Phaser.Scene {
 
         const worldPoint = this.input.activePointer.positionToCamera(this.cameras.main);
         const map = this.layers.item;
-        const pointerTileX = map.worldToTileX(worldPoint.x);
-        const pointerTileY = map.worldToTileY(worldPoint.y);
+        
+        this.handleInput();
 
-        const marker = this.marker;
-        marker.x = map.tileToWorldX(pointerTileX);
-        marker.y = map.tileToWorldY(pointerTileY);
-        player.sprite.tileX = map.worldToTileX(player.sprite.x);
-        player.sprite.tileY = map.worldToTileX(player.sprite.y);
-
-        const proximity = Phaser.Math.Distance.Between(marker.x, marker.y, player.sprite.x, player.sprite.y) < 60;
-
-        let moved = false;
-
-        if((map.getTileAt(pointerTileX, pointerTileY) && proximity) || this.building) {
-            marker.visible = true;
-        } else {
-            marker.visible = false;
-        }
-        if(this.building) {
-            this.ghostBuilding.x = marker.x + this.ghostBuilding.width / 2;
-            this.ghostBuilding.y = marker.y + this.ghostBuilding.height / 2;
-            if(this.player.inventory.length>0) {
-                this.marker.clear();
-                this.marker.lineStyle(2, 0x000000, 1);
-                this.marker.strokeRect(0, 0, map.tileWidth * this.layers.background.scaleX, map.tileHeight * this.layers.background.scaleY);
-            } else {
-                this.marker.clear();
-                this.marker.lineStyle(2, 0x770000, 1);
-                this.marker.strokeRect(0, 0, map.tileWidth * this.layers.background.scaleX, map.tileHeight * this.layers.background.scaleY);
-            }
-        }
-        if (this.input.manager.activePointer.justDown && proximity) {
-            let item = map.getTileAt(pointerTileX, pointerTileY);
-            if(item && player.inventory.canAddToInventory(item)) {
-                /*player.inventory.push(item.properties);
-                map.removeTileAt(pointerTileX, pointerTileY);*/
-                Network.send('pickup', {x: pointerTileX, y: pointerTileY});
-
-            } else if(!item && this.building) {
-                this.buildItem(this.building, pointerTileX, pointerTileY);
-            }
-            let tile = this.layers.structure.getTileAt(pointerTileX, pointerTileY);
-            if(tile) {
-                if(tile.properties.open) {
-                    Network.send(ACTIONS.ACTION_OPEN, {x: pointerTileX, y: pointerTileY});
-                } else if(tile.properties.close) {
-                    Network.send(ACTIONS.ACTION_CLOSE, {x: pointerTileX, y: pointerTileY});
-                }
-                if(0 && (tile.properties.open || tile.properties.close)) {
-                    console.log(tile);
-                    let s = {x: pointerTileX, y: pointerTileY, id: tile.properties.open||tile.properties.close};
-                    this.layers.structure.removeTileAt(pointerTileX, pointerTileY);
-                    let t = new Phaser.Tilemaps.Tile(this.layers.structure, ItemResolver(tile.properties.open||tile.properties.close).fg);
-                    if(TerrainData[s.id]) {
-                        this.collisionMap[s.y][s.x] = (TerrainData[s.id].move_cost === 0) ? 1:0;
-                        t.properties = TerrainData[s.id];
-                    }
-                    if(FurnitureData[s.id]) {
-                        this.collisionMap[s.y][s.x] = (FurnitureData[s.id].move_cost_mod === -1) ? 1:0
-                        t.properties = FurnitureData[s.id];
-                    }
-                    this.layers.structure.putTileAt(t, s.x, s.y);
-                }
-            }
-        }
-
-        sprite.setVelocity(0,0);
-        if (cursors.left.isDown || this.keys.leftKey.isDown) {
-            sprite.setVelocityX(-100);
-            moved = true;
-        } else if (cursors.right.isDown || this.keys.rightKey.isDown) {
-            sprite.setVelocityX(100);
-            moved = true;
-        }
-        if(cursors.up.isDown || this.keys.upKey.isDown) {
-            sprite.setVelocityY(-100);
-            moved = true;
-        } else if(cursors.down.isDown || this.keys.downKey.isDown) {
-            sprite.setVelocityY(100);
-            moved = true;
-        }
-        if(Phaser.Input.Keyboard.JustDown(this.keys.buildKey)) {
-            if(!UI.uiState.craftingOpen) {
-                UI.setState({
-                    craftingOpen: true
-                })
-            } else {
-                UI.setState({
-                    craftingOpen: false
-                })
-            }
-        }
-        this.keys.escapeKey.forEach(ek => {
-            if(Phaser.Input.Keyboard.JustDown(ek)) {
-                this.stopBuilding();
-                UI.setState({
-                    inventoryOpen: false,
-                    craftingOpen: false
-                })
-            }
-        });
-        if(Phaser.Input.Keyboard.JustDown(this.keys.toggleInventory)) {
-            UI.setState({
-                inventoryOpen: !UI.uiState.inventoryOpen
-            })
-        }
-
-        /* Rotate building or ghost building */
-        if(Phaser.Input.Keyboard.JustDown(this.keys.rotateKey)) {
-            let t;
-            if(this.ghostBuilding) {
-                t = this.ghostBuilding;
-                console.log(t);
-            } else {
-                t = this.layers.structure.getTileAt(pointerTileX, pointerTileY);
-                if(!t.index) {
-                    t = null;
-                }
-            }
-            if(t) {
-                let r = Phaser.Math.RadToDeg(t.rotation);
-                r += 90;
-                if(r>=360) {
-                    r=0;
-                }
-                t.rotation = Phaser.Math.DegToRad(r);
-            }
-        }
-        if(Phaser.Input.Keyboard.JustDown(this.keys.fireKey)) {
-            let nearest = {index: -1, distance: 99999, x:-1, y:-1};
-            Object.entries(this.entities).forEach(([index, entity]) => {
-                let distance = Phaser.Math.Distance.Between(entity.sprite.x, entity.sprite.y, player.sprite.x, player.sprite.y);
-                if (distance < nearest.distance){
-                    nearest.distance = distance;
-                    nearest.index = index;
-                    nearest.x = entity.sprite.x;
-                    nearest.y = entity.sprite.y;
-                }
-            });
-            if(nearest.index !== -1) {
-                Network.send('fire', {
-                    source: {x: player.sprite.x, y: player.sprite.y},
-                    dest: {x: nearest.x, y: nearest.y}
-                });
-            }
-            /*this.fireProjectile({
-                source: {x: player.sprite.x, y: player.sprite.y},
-                dest: {x: this.input.x + this.cameras.main.scrollX, y: this.input.y + this.cameras.main.scrollY}
-            });*/
-        }
-
-        if(Phaser.Input.Keyboard.JustDown(this.keys.doorKey)) {
-            let cross = {
-                Up:    this.layers.structure.getTileAt(player.sprite.tileX, player.sprite.tileY -1),
-                Down:  this.layers.structure.getTileAt(player.sprite.tileX, player.sprite.tileY +1),
-                Left:  this.layers.structure.getTileAt(player.sprite.tileX -1, player.sprite.tileY),
-                Right: this.layers.structure.getTileAt(player.sprite.tileX +1, player.sprite.tileY),
-                Same:  this.layers.structure.getTileAt(player.sprite.tileX, player.sprite.tileY)
-            };
-            Object.entries(cross).forEach(([_, tile]) => {
-                if((tile !== null)&&(tile.properties.open || tile.properties.close)) {
-                        if(tile.properties.open) {
-                            Network.send(ACTIONS.ACTION_OPEN, {x: tile.x, y: tile.y});
-                        } else if(tile.properties.close) {
-                            Network.send(ACTIONS.ACTION_CLOSE, {x: tile.x, y: tile.y});
-                        }
-                }
-            });
-        }
-        if(moved) {
-            Network.send(ACTIONS.ACTION_MOVE, {player: {x: Math.round(player.sprite.x), y: Math.round(player.sprite.y)}});
-        }
         Object.keys(this.clientMap).forEach(k => {
             this.clientMap[k].update();
         })
@@ -599,5 +418,203 @@ export default class GameScene extends Phaser.Scene {
     onBuild = (args) => {
         let recipe = args.recipe;
         this.startBuilding(recipe);
+    }
+    setupInput() {
+        /* Multi purpose use key with priority */
+        this.keys.useKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+        this.keys.buildKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
+        this.keys.upKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
+        this.keys.downKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
+        this.keys.leftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
+        this.keys.rightKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+        this.keys.toggleInventory = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+        this.keys.fireKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
+        this.keys.escapeKey = [
+            this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC),
+            this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q)
+        ];
+        this.keys.rotateKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
+
+    }
+    handleInput() {
+        const cursors = this.input.keyboard.createCursorKeys();
+        const player = this.player;
+        const sprite = player.sprite;
+
+        const worldPoint = this.input.activePointer.positionToCamera(this.cameras.main);
+
+        const map = this.layers.item;
+        const pointerTileX = map.worldToTileX(worldPoint.x);
+        const pointerTileY = map.worldToTileY(worldPoint.y);
+
+        const marker = this.marker;
+        marker.x = map.tileToWorldX(pointerTileX);
+        marker.y = map.tileToWorldY(pointerTileY);
+        player.sprite.tileX = map.worldToTileX(player.sprite.x);
+        player.sprite.tileY = map.worldToTileX(player.sprite.y);
+
+        const proximity = Phaser.Math.Distance.Between(marker.x, marker.y, player.sprite.x, player.sprite.y) < 60;
+
+        let moved = false;
+
+        if((map.getTileAt(pointerTileX, pointerTileY) && proximity) || this.building) {
+            marker.visible = true;
+        } else {
+            marker.visible = false;
+        }
+        if(this.building) {
+            this.ghostBuilding.x = marker.x + this.ghostBuilding.width / 2;
+            this.ghostBuilding.y = marker.y + this.ghostBuilding.height / 2;
+            if(this.player.inventory.length>0) {
+                this.marker.clear();
+                this.marker.lineStyle(2, 0x000000, 1);
+                this.marker.strokeRect(0, 0, map.tileWidth * this.layers.background.scaleX, map.tileHeight * this.layers.background.scaleY);
+            } else {
+                this.marker.clear();
+                this.marker.lineStyle(2, 0x770000, 1);
+                this.marker.strokeRect(0, 0, map.tileWidth * this.layers.background.scaleX, map.tileHeight * this.layers.background.scaleY);
+            }
+        }
+        if (this.input.manager.activePointer.justDown && proximity) {
+            let item = map.getTileAt(pointerTileX, pointerTileY);
+            if(item && player.inventory.canAddToInventory(item)) {
+                Network.send('pickup', {x: pointerTileX, y: pointerTileY});
+            } else if(!item && this.building) {
+                this.buildItem(this.building, pointerTileX, pointerTileY);
+            }
+            let tile = this.layers.structure.getTileAt(pointerTileX, pointerTileY);
+            if(tile) {
+                if(tile.properties.open) {
+                    Network.send(ACTIONS.ACTION_OPEN, {x: pointerTileX, y: pointerTileY});
+                } else if(tile.properties.close) {
+                    Network.send(ACTIONS.ACTION_CLOSE, {x: pointerTileX, y: pointerTileY});
+                }
+            }
+        }
+
+        sprite.setVelocity(0,0);
+        if (cursors.left.isDown || this.keys.leftKey.isDown) {
+            sprite.setVelocityX(-100);
+            moved = true;
+        } else if (cursors.right.isDown || this.keys.rightKey.isDown) {
+            sprite.setVelocityX(100);
+            moved = true;
+        }
+        if(cursors.up.isDown || this.keys.upKey.isDown) {
+            sprite.setVelocityY(-100);
+            moved = true;
+        } else if(cursors.down.isDown || this.keys.downKey.isDown) {
+            sprite.setVelocityY(100);
+            moved = true;
+        }
+        if(Phaser.Input.Keyboard.JustDown(this.keys.buildKey)) {
+            if(!UI.uiState.craftingOpen) {
+                UI.setState({
+                    craftingOpen: true
+                })
+            } else {
+                UI.setState({
+                    craftingOpen: false
+                })
+            }
+        }
+        this.keys.escapeKey.forEach(ek => {
+            if(Phaser.Input.Keyboard.JustDown(ek)) {
+                this.stopBuilding();
+                UI.setState({
+                    inventoryOpen: false,
+                    craftingOpen: false
+                })
+            }
+        });
+        if(Phaser.Input.Keyboard.JustDown(this.keys.toggleInventory)) {
+            UI.setState({
+                inventoryOpen: !UI.uiState.inventoryOpen
+            })
+        }
+
+        /* Rotate building or ghost building */
+        if(Phaser.Input.Keyboard.JustDown(this.keys.rotateKey)) {
+            let t;
+            if(this.ghostBuilding) {
+                t = this.ghostBuilding;
+                console.log(t);
+            } else {
+                t = this.layers.structure.getTileAt(pointerTileX, pointerTileY);
+                if(!t.index) {
+                    t = null;
+                }
+            }
+            if(t) {
+                let r = Phaser.Math.RadToDeg(t.rotation);
+                r += 90;
+                if(r>=360) {
+                    r=0;
+                }
+                t.rotation = Phaser.Math.DegToRad(r);
+            }
+        }
+        if(Phaser.Input.Keyboard.JustDown(this.keys.fireKey)) {
+            let nearest = {index: -1, distance: 99999, x:-1, y:-1};
+            Object.entries(this.entities).forEach(([index, entity]) => {
+                let distance = Phaser.Math.Distance.Between(entity.sprite.x, entity.sprite.y, player.sprite.x, player.sprite.y);
+                if (distance < nearest.distance){
+                    nearest.distance = distance;
+                    nearest.index = index;
+                    nearest.x = entity.sprite.x;
+                    nearest.y = entity.sprite.y;
+                }
+            });
+            if(nearest.index !== -1) {
+                Network.send('fire', {
+                    source: {x: player.sprite.x, y: player.sprite.y},
+                    dest: {x: nearest.x, y: nearest.y}
+                });
+            }
+            /*this.fireProjectile({
+                source: {x: player.sprite.x, y: player.sprite.y},
+                dest: {x: this.input.x + this.cameras.main.scrollX, y: this.input.y + this.cameras.main.scrollY}
+            });*/
+        }
+
+        if(Phaser.Input.Keyboard.JustDown(this.keys.useKey)) {
+
+            /* Use a 'smart' priority system to pick the most likely action the player wants to perform */
+            const useActions = [
+                'open',
+                'close'
+            ];
+            for(let action of useActions) {   
+                if(action === 'open' || action === 'close') {
+                    let performedAction = false;
+                    let cross = {
+                        Up:    this.layers.structure.getTileAt(player.sprite.tileX, player.sprite.tileY -1),
+                        Down:  this.layers.structure.getTileAt(player.sprite.tileX, player.sprite.tileY +1),
+                        Left:  this.layers.structure.getTileAt(player.sprite.tileX -1, player.sprite.tileY),
+                        Right: this.layers.structure.getTileAt(player.sprite.tileX +1, player.sprite.tileY),
+                        /*Same:  this.layers.structure.getTileAt(player.sprite.tileX, player.sprite.tileY)*/
+                    };
+                    Object.entries(cross).forEach(([_, tile]) => {
+                        if((tile !== null)&&(tile.properties.open || tile.properties.close)) {
+                                if(tile.properties.open) {
+                                    performedAction = true;
+                                    Network.send(ACTIONS.ACTION_OPEN, {x: tile.x, y: tile.y});
+                                } else if(tile.properties.close) {
+                                    performedAction = true;
+                                    Network.send(ACTIONS.ACTION_CLOSE, {x: tile.x, y: tile.y});
+                                }
+                        }
+                    });
+                    if(performedAction) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if(moved) {
+            Network.send(ACTIONS.ACTION_MOVE, {player: {x: Math.round(player.sprite.x), y: Math.round(player.sprite.y)}});
+        }
     }
 }
