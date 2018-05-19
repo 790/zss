@@ -245,7 +245,7 @@ class UI {
                 this.debugText.setText(pointerTileX+', '+pointerTileY+'\n'+layers.map((l,i) => {
                     let t = tiles[l];
                     if(t) {
-                        return l+': '+tiles[l].index+' '+tiles[l].properties.id;// + '\n'+JSON.stringify(tiles[l].properties, null, 2);
+                        return l+': '+tiles[l].index+' '+tiles[l].properties.id+' rot: '+Phaser.Math.RadToDeg(tiles[l].rotation);// + '\n'+JSON.stringify(tiles[l].properties, null, 2);
                     } else {
                         return l+': null';
                     }

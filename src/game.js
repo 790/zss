@@ -362,24 +362,23 @@ export default class GameScene extends Phaser.Scene {
             }
 
             let rotationData = GetTileRotation(val, num_connects);
-            if(tileData.id === 't_wall' && rotationData.subtile === 'corner')
-                console.log(tileData.id, val, num_connects, neighborhood, rotationData);
             if(rotationData.subtile) {
 
                 let at = tileData.additional_tiles.find(at => at.id === rotationData.subtile);
 
-                if(at && at.fg[rotationData.rotation]) {
-                    if(tileData.id === 't_wall' && rotationData.subtile === 'corner') {
-                        console.log("moiooooo", at, data.x, data.y)
+                if(at) {
+                    if(at.fg[rotationData.rotation]!=null) {
+                        item.tile = at.fg[rotationData.rotation];
+                    } else if(rotationData.rotation) {
+                        item.tile = at.fg;
+                        item.angle = rotationData.rotation*-90;
+                    } else {
+                        item.tile = at.fg;
                     }
-                    item.tile = at.fg[rotationData.rotation];
 
                 } else {
-
                     if(item.tile && item.tile.length) {
                         item.tile = item.tile[rotationData.rotation];
-                    } else {
-
                     }
                 }
             }
@@ -392,7 +391,7 @@ export default class GameScene extends Phaser.Scene {
             console.log("missing tile", item, tileData);
         }
         let itemTile = new Phaser.Tilemaps.Tile(this.layers[data.layer], item.tile, data.x, data.y);
-        itemTile.angle = item.angle||0;
+        itemTile.rotation = Phaser.Math.DegToRad(item.angle||0);// item.angle||0;
         itemTile.properties = item;
 
         if(1 || data.layer === 'structure') {
@@ -400,7 +399,7 @@ export default class GameScene extends Phaser.Scene {
                 this.collisionMap[data.y][data.x] = (TerrainData[item.id].move_cost === 0) ? 1:0;
                 itemTile.properties = TerrainData[item.id];
             }
-            else if(FurnitureData[item.id]) {
+            if(FurnitureData[item.id]) {
                 this.collisionMap[data.y][data.x] = (FurnitureData[item.id].move_cost_mod === -1) ? 1:0
                 itemTile.properties = FurnitureData[item.id];
             }
