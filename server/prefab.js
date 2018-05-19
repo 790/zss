@@ -29,7 +29,7 @@ class Prefab {
             for(x=0;x<obj.rows[y].length;x++){
                 let tile_char = obj.rows[y][x];
                 let tile_name = obj.terrain[tile_char];
-                if(tile_name === undefined) {
+                if(tile_name == null) {
                         tile_name = obj.fill_ter;
                 }
                 switch (direction) {
@@ -60,7 +60,9 @@ class Prefab {
                         id: obj.furniture[tile_char], x:newx, y:newy
                     });
                 }
-                basemap[newy][newx] = {id: tile_name};
+                if(tile_name) {
+                    basemap[newy][newx] = {id: tile_name};
+                }
             }
         }
         return {ground: basemap, structure: structures, item: []};

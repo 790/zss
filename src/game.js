@@ -353,7 +353,8 @@ export default class GameScene extends Phaser.Scene {
 
             // populate connection information
             for (let i = 0; i < 4; ++i) {
-                connects[i] = (neighborhood[i] && neighborhood[i].properties.id === item.id);
+                let d = item.id.indexOf('t_') === 0 ? TerrainData : FurnitureData;
+                connects[i] = (neighborhood[i] && d[item.id] && d[neighborhood[i].properties.id] && (neighborhood[i].properties.id === item.id || d[neighborhood[i].properties.id].connects_to === d[item.id].connects_to));
 
                 if (connects[i]) {
                     ++num_connects;
