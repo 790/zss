@@ -232,8 +232,9 @@ class UI {
             const worldPoint = this.game.input.activePointer.positionToCamera(this.game.cameras.main);
             const layers = ['background','structure','item'];
             let tiles = {};
+            const pointerTileX = data.layers['background'].worldToTileX(worldPoint.x);
+            const pointerTileY = data.layers['background'].worldToTileY(worldPoint.y);
             layers.map(i => {
-                console.log(data.layers);
                 const map = data.layers[i];
                 const pointerTileX = map.worldToTileX(worldPoint.x);
                 const pointerTileY = map.worldToTileY(worldPoint.y);
@@ -241,10 +242,10 @@ class UI {
                 tiles[i] = map.getTileAt(pointerTileX, pointerTileY);
             })
             if(tiles) {
-                this.debugText.setText(layers.map((l,i) => {
+                this.debugText.setText(pointerTileX+', '+pointerTileY+'\n'+layers.map((l,i) => {
                     let t = tiles[l];
                     if(t) {
-                        return l+': '+tiles[l].properties.id;// + '\n'+JSON.stringify(tiles[l].properties, null, 2);
+                        return l+': '+tiles[l].index+' '+tiles[l].properties.id;// + '\n'+JSON.stringify(tiles[l].properties, null, 2);
                     } else {
                         return l+': null';
                     }

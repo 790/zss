@@ -8,14 +8,14 @@ const randomWeightedChoice = (
     const T = (temperature - 50) / 50
     const nb = table.length
     if (!nb) { return null }
-  
+
     const total = table.reduce(
       (previousTotal, element) => previousTotal + element.weight,
       0
     )
-  
+
     const avg = total / nb
-  
+
     // Compute amplified urgencies (depending on temperature)
     const ur = {}
     const urgencySum = table.reduce((previousSum, element) =>
@@ -26,14 +26,14 @@ const randomWeightedChoice = (
       ur[id] = (ur[id] || 0) + urgency
       return previousSum + urgency;
     }, 0);
-  
+
     let currentUrgency = 0;
     const cumulatedUrgencies = {}
     Object.keys(ur).forEach(id => {
       currentUrgency += ur[id]
       cumulatedUrgencies[id] = currentUrgency
     })
-  
+
     if (urgencySum < 1) return null; // No weight given
     // Choose
     const choice = randomFunction() * urgencySum
@@ -46,5 +46,9 @@ const randomWeightedChoice = (
       }
     }
 };
-
-export {randomWeightedChoice};
+function getRandomInt(min,max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+export {randomWeightedChoice, getRandomInt};

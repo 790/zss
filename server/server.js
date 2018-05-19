@@ -8,6 +8,7 @@ import ACTIONS from '../src/actions.json';
 import Prefab from './prefab';
 
 import {FurnitureData, TerrainData} from '../src/tiles';
+import {getRandomInt} from '../src/utils';
 
 const express = require('express');
 const cors = require('cors');
@@ -22,6 +23,7 @@ class Instance {
     constructor(width=32, height=32) {
         this.id = lastInstanceId++;
         let basemap = new Array(height).fill(0).map(_ => new Array(width).fill(-1));
+        basemap = basemap.map(gy => gy.map(t => getRandomInt(0,9)===0?{id:'t_dirt'}:{id:'t_grass'}));
         // direction can be 0,90,180,270 degrees rotation
         let pf = new Prefab({basemap: basemap, direction: 0, offsetx: 0, offsety: 0});
         this.map = { width, height, ground:pf.ground, structure: pf.structure, item: pf.item};
@@ -39,11 +41,6 @@ const instances = {};
 let defaultInstance = new Instance(64,64);
 instances[defaultInstance.id] = defaultInstance;
 
-function getRandomInt(min, max) {
-    min = Math.ceil(min);
-    max = Math.floor(max);
-    return Math.floor(Math.random() * (max - min)) + min;
-  }
 const Between = getRandomInt;
 
 let itemMap = {};

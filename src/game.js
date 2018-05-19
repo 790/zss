@@ -2,9 +2,10 @@ import Phaser from 'phaser';
 
 import {Player} from './entity/player';
 import UI from './ui';
-import { Item, ItemResolver } from './entity/item';
+import { Item } from './entity/item';
 import { LivingEntity } from './entity/entity';
-
+import {TileResolver, GetTileRotation} from './tiles';
+import {randomWeightedChoice} from './utils';
 import Network from './network';
 
 import ACTIONS from '../src/actions.json';
@@ -48,7 +49,7 @@ export default class GameScene extends Phaser.Scene {
                 data.forEach(client => {
                     if(!client.me) {
                         this.clients[client.id] = client;
-                        let sprite = this.physics.add.sprite(client.x, client.y, 'tiles', ItemResolver('mon_bandit_looter').fg);
+                        let sprite = this.physics.add.sprite(client.x, client.y, 'tiles', TileResolver('mon_bandit_looter').fg);
                         sprite.setActive().setMaxVelocity(300,300);
                         sprite.setPosition(client.x, client.y);
                         this.clientMap[client.id] = sprite;
@@ -74,7 +75,7 @@ export default class GameScene extends Phaser.Scene {
                 console.log(client);
                 if(!this.clients[client.id]) {
                     this.clients[client.id] = client;
-                    let sprite = this.physics.add.sprite(client.x, client.y, 'tiles', ItemResolver('mon_bandit_looter').fg);
+                    let sprite = this.physics.add.sprite(client.x, client.y, 'tiles', TileResolver('mon_bandit_looter').fg);
                     sprite.setActive().setMaxVelocity(300,300);
                     sprite.setPosition(client.x, client.y);
                     this.clientMap[client.id] = sprite;
@@ -93,7 +94,12 @@ export default class GameScene extends Phaser.Scene {
                 }
             }).on('setTile', data => {
                 console.log("net set tile", data);
+                this.setTile(data);
+                return;
                 let item = data.item;
+                let x = data.x;
+                let y = data.y;
+                let tileData = null;
                 if(!this.layers[data.layer]) {
                     return;
                 }
@@ -101,8 +107,10 @@ export default class GameScene extends Phaser.Scene {
                     this.layers[data.layer].removeTileAt(data.x, data.y);
                     this.collisionMap[data.y][data.x] = 0;
                 } else {
-                    item.tile = ItemResolver(item.id).fg;
+                    tileData = TileResolver(item.id);
+                    item.tile = tileData.fg;
                 }
+
                 let itemTile = new Phaser.Tilemaps.Tile(this.layers[data.layer], item.tile, data.x, data.y);
                 itemTile.angle = item.angle||0;
                 itemTile.properties = item;
@@ -163,16 +171,15 @@ export default class GameScene extends Phaser.Scene {
         this.entityGroup = this.physics.add.group();
 
         /* Add some random enemies */
-        for(let i = 0; i < 10; i++) {
+        for(let i = 0; i < 2; i++) {
             let enemy = new LivingEntity({
-                x: 100, y:100, name: 'enemy', tile: ItemResolver('mon_zombie_2').fg
+                x: 100, y:100, name: 'enemy', tile: TileResolver('mon_zombie_2').fg
             });
             let enemySprite = this.physics.add.sprite(enemy.x, enemy.y, 'tiles', enemy.tile);
             enemySprite.enableBody(true, 100, 100)
             enemySprite.setActive(true).setMaxVelocity(100, 100);//.setActiveCollision(true);
             enemySprite.setCollideWorldBounds(true);
             this.physics.add.collider(enemySprite, this.layers.structure);
-            console.log(enemySprite);
             enemy.sprite = enemySprite;
             enemySprite.properties = enemy;
             this.entities.push(enemy);
@@ -220,7 +227,7 @@ export default class GameScene extends Phaser.Scene {
     fireProjectile(opts) {
         let {source, dest} = opts;
 
-        let projectile = this.projectiles.get(source.x, source.y, 'tiles', ItemResolver('animation_bullet_normal').fg); //this.physics.add.image(player.sprite.x-8, player.sprite.y-8, 'tiles', ItemResolver('bullet_crossbow').fg);
+        let projectile = this.projectiles.get(source.x, source.y, 'tiles', TileResolver('animation_bullet_normal').fg); //this.physics.add.image(player.sprite.x-8, player.sprite.y-8, 'tiles', ItemResolver('bullet_crossbow').fg);
 
         if(projectile) {
             projectile.enableBody(true, source.x, source.y).setActive(true).setVisible(true);
@@ -287,6 +294,119 @@ export default class GameScene extends Phaser.Scene {
         this.itemMap = itemMap;
 
     }
+    setTile(data, updateConnections=false) {
+        let item = data.item;
+        let x = data.x;
+        let y = data.y;
+        let tileData = null;
+        if(!this.layers[data.layer]) {
+            return;
+        }
+        if(item.id === -1) {
+            this.layers[data.layer].removeTileAt(data.x, data.y);
+            this.collisionMap[data.y][data.x] = 0;
+        } else {
+            tileData = TileResolver(item.id);
+            let fg = tileData.fg;
+            if(fg instanceof Array && typeof fg[0] === 'number') {
+                fg = fg[0];
+            } else if(fg instanceof Array && typeof[0] === 'object') {
+                fg = randomWeightedChoice(fg.map(e => {
+                    if(e.sprite instanceof Array && e.sprite.length) {
+                       return {...e, id: e.sprite};
+                    } else {
+                        return {...e, id: e.sprite};
+                    }
+                })).split(',').map(e => parseInt(e,10));
+                if(fg instanceof Array) {
+                   // fg = fg[0];
+                } else {
+                    fg = parseInt(fg, 10);
+                }
+                /*fg = fg[0];
+                if(fg.sprite) {
+                    fg = fg.sprite
+                }*/
+                /*fg = parseInt(randomWeightedChoice(fg.map(e => {
+                    if(e.sprite instanceof Array && e.sprite.length) {
+                       return e.sprite;//{...e, id: e.sprite[Math.floor(Math.random()*e.sprite.length)]};
+                    } else {
+                        return {...e, id: e.sprite};
+                    }
+
+                })), 10);*/
+            }
+            item.tile = fg;
+        }
+        if(updateConnections && tileData.multitile && tileData.additional_tiles) {
+            /* Get tile connections */
+            const neighborhood = [
+                this.layers[data.layer].getTileAt( x, y + 1 ), // south
+                this.layers[data.layer].getTileAt( x + 1, y ), // east
+                this.layers[data.layer].getTileAt( x - 1, y ), // west
+                this.layers[data.layer].getTileAt( x, y - 1 ) // north
+            ];
+
+            let connects = new Array(4);
+            let val = 0;
+            let num_connects = 0;
+
+            // populate connection information
+            for (let i = 0; i < 4; ++i) {
+                connects[i] = (neighborhood[i] && neighborhood[i].properties.id === item.id);
+
+                if (connects[i]) {
+                    ++num_connects;
+                    val += 1 << i;
+                }
+            }
+
+            let rotationData = GetTileRotation(val, num_connects);
+            if(tileData.id === 't_wall' && rotationData.subtile === 'corner')
+                console.log(tileData.id, val, num_connects, neighborhood, rotationData);
+            if(rotationData.subtile) {
+
+                let at = tileData.additional_tiles.find(at => at.id === rotationData.subtile);
+
+                if(at && at.fg[rotationData.rotation]) {
+                    if(tileData.id === 't_wall' && rotationData.subtile === 'corner') {
+                        console.log("moiooooo", at, data.x, data.y)
+                    }
+                    item.tile = at.fg[rotationData.rotation];
+
+                } else {
+
+                    if(item.tile && item.tile.length) {
+                        item.tile = item.tile[rotationData.rotation];
+                    } else {
+
+                    }
+                }
+            }
+        } else {
+            if(item.tile instanceof Array) {
+                item.tile = item.tile[0];
+            }
+        }
+        if(!item.tile) {
+            console.log("missing tile", item, tileData);
+        }
+        let itemTile = new Phaser.Tilemaps.Tile(this.layers[data.layer], item.tile, data.x, data.y);
+        itemTile.angle = item.angle||0;
+        itemTile.properties = item;
+
+        if(1 || data.layer === 'structure') {
+            if(TerrainData[item.id]) {
+                this.collisionMap[data.y][data.x] = (TerrainData[item.id].move_cost === 0) ? 1:0;
+                itemTile.properties = TerrainData[item.id];
+            }
+            else if(FurnitureData[item.id]) {
+                this.collisionMap[data.y][data.x] = (FurnitureData[item.id].move_cost_mod === -1) ? 1:0
+                itemTile.properties = FurnitureData[item.id];
+            }
+        }
+        this.layers[data.layer].putTileAt(itemTile, data.x, data.y);
+    }
     setMap(id, width, height, map) {
         this.layers.background.fill(-1, 0, 0, width, height);
         this.layers.structure.fill(-1, 0, 0, width, height);
@@ -297,9 +417,13 @@ export default class GameScene extends Phaser.Scene {
             }
         }*/
         let collisionMap = new Array(height).fill(0).map(() => new Array(width).fill(0));
+        this.collisionMap = collisionMap;
         let ground = map.ground.map((r,y) => {
             return r.map((t,x) => {
-                let i = ItemResolver(t.id);
+                let i = TileResolver(t.id);
+                if(i.fg instanceof Array) {
+                    i.fg = i.fg[0];
+                }
                 let tile = null;
                 if(!i.bg && i.fg) {
 
@@ -315,6 +439,11 @@ export default class GameScene extends Phaser.Scene {
                     tile = new Phaser.Tilemaps.Tile(this.layers.background, i.bg);
                     tile.properties = TerrainData[t.id];
                 }
+                if(tile) {
+                    this.collisionMap[y][x] = (tile.properties.move_cost  === 0) ? 1:0;
+                } else {
+                    this.collisionMap[y][x] = 0;
+                }
                 return tile;
             })
         });
@@ -322,23 +451,27 @@ export default class GameScene extends Phaser.Scene {
         this.layers.background.putTilesAt(ground, 0, 0);
 
         map.structure.forEach(s => {
-            let t = new Phaser.Tilemaps.Tile(this.layers.structure, s.tile||ItemResolver(s.id).fg);
-            if(TerrainData[s.id]) {
-                if(TerrainData[s.id].move_cost === 0) {
-                    collisionMap[s.y][s.x] = 1;
-                }
-                t.properties = TerrainData[s.id];
-            }
-            if(FurnitureData[s.id]) {
-                if(FurnitureData[s.id].move_cost_mod === -1) {
-                    collisionMap[s.y][s.x] = 1;
-                }
-                t.properties = FurnitureData[s.id];
-            }
-            this.layers.structure.putTileAt(t, s.x, s.y);
+            this.setTile({
+                layer: 'structure',
+                 x: s.x,
+                 y: s.y,
+                 item: {
+                     id: s.id
+                 }
+            })
+        });
+        map.structure.forEach(s => {
+            this.setTile({
+                layer: 'structure',
+                 x: s.x,
+                 y: s.y,
+                 item: {
+                     id: s.id
+                 }
+            }, true)
         });
         map.item.forEach(i => {
-            this.layers.item.putTileAt(ItemResolver(i.id).fg, i.x, i.y);
+            this.layers.item.putTileAt(TileResolver(i.id).fg, i.x, i.y);
         });
         this.collisionMap = collisionMap;
         //this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
@@ -361,7 +494,7 @@ export default class GameScene extends Phaser.Scene {
                     let item = new Item({
                         id: item_id
                     });
-                    item.tile = ItemResolver(item_id).fg;
+                    item.tile = TileResolver(item_id).fg;
                     if(adjacent.length === 3) {
                         item.tile = 2248;
                     }
@@ -396,7 +529,7 @@ export default class GameScene extends Phaser.Scene {
     startBuilding(recipe) {
         this.building = recipe;
 
-        this.ghostBuilding = this.add.image(this.marker.x + this.marker.width / 2, this.marker.y + this.marker.height / 2, 'tiles', ItemResolver(this.building.post_terrain).fg);
+        this.ghostBuilding = this.add.image(this.marker.x + this.marker.width / 2, this.marker.y + this.marker.height / 2, 'tiles', TileResolver(this.building.post_terrain).fg);
         this.ghostBuilding.setOrigin(0.5);
 
         this.ghostBuilding.setAlpha(0.4);
