@@ -318,9 +318,23 @@ export default class GameScene extends Phaser.Scene {
 
             // populate connection information
             for (let i = 0; i < 4; ++i) {
+                if(neighborhood[i] && neighborhood[i].properties.id === 't_window_domestic') {
+                    console.log("oagnbaog")
+                }
                 let d = item.id.indexOf('t_') === 0 ? TerrainData : FurnitureData;
-                connects[i] = (neighborhood[i] && d[item.id] && d[neighborhood[i].properties.id] && (neighborhood[i].properties.id === item.id || d[neighborhood[i].properties.id].connects_to === d[item.id].connects_to));
-
+                connects[i] = (
+                    (neighborhood[i] && d[item.id] && d[neighborhood[i].properties.id])
+                    && 
+                    (
+                        (neighborhood[i].properties.id === item.id || d[neighborhood[i].properties.id].connects_to === d[item.id].connects_to)
+                    || 
+                        (d[neighborhood[i].properties.id].flags.indexOf('CONNECT_TO_WALL')>-1 && d[item.id].flags.indexOf('WALL')>-1)
+                    )
+                );
+                if((neighborhood[i] && d[item.id] && d[neighborhood[i].properties.id])
+                && (d[neighborhood[i].properties.id].flags.indexOf('CONNECT_TO_WALL')>-1 && d[item.id].flags.indexOf('WALL')>-1)) {
+                    console.log(d[item.id], d[neighborhood[i].properties.id]);
+                }
                 if (connects[i]) {
                     ++num_connects;
                     val += 1 << i;
