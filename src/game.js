@@ -96,43 +96,13 @@ export default class GameScene extends Phaser.Scene {
                 console.log("net set tile", data);
                 this.setTile(data);
                 return;
-                let item = data.item;
-                let x = data.x;
-                let y = data.y;
-                let tileData = null;
-                if(!this.layers[data.layer]) {
-                    return;
-                }
-                if(item.id === -1) {
-                    this.layers[data.layer].removeTileAt(data.x, data.y);
-                    this.collisionMap[data.y][data.x] = 0;
-                } else {
-                    tileData = TileResolver(item.id);
-                    item.tile = tileData.fg;
-                }
-
-                let itemTile = new Phaser.Tilemaps.Tile(this.layers[data.layer], item.tile, data.x, data.y);
-                itemTile.angle = item.angle||0;
-                itemTile.properties = item;
-
-                if(data.layer === 'structure') {
-                    if(TerrainData[item.id]) {
-                        this.collisionMap[data.y][data.x] = (TerrainData[item.id].move_cost === 0) ? 1:0;
-                        itemTile.properties = TerrainData[item.id];
-                    }
-                    if(FurnitureData[item.id]) {
-                        this.collisionMap[data.y][data.x] = (FurnitureData[item.id].move_cost_mod === -1) ? 1:0
-                        itemTile.properties = FurnitureData[item.id];
-                    }
-                }
-                this.layers[data.layer].putTileAt(itemTile, data.x, data.y);
             }).on('map', data => {
                 let map = data.map;
                 this.setMap(data.id, map.width, map.height, map);
             }).on('inventory', data => {
                 if(data.type === 'push') {
                     console.log(data);
-                    player.inventory.push(data.item);
+                    player.inventory.push(data.item.item);
                 } else if(data.type === 'set') {
                     player.inventory.from(data.inventory);
                 }
@@ -168,6 +138,8 @@ export default class GameScene extends Phaser.Scene {
         console.log(this.layers.background);
         this.cameras.main.setBounds(0,0, this.layers.background.width, this.layers.background.height)
         this.cameras.main.startFollow(sprite);
+        //this.cameras.main.roundPixels = true;
+
         this.entityGroup = this.physics.add.group();
 
         /* Add some random enemies */
@@ -251,8 +223,11 @@ export default class GameScene extends Phaser.Scene {
         }
     }
     setupMap(id=0, width=64, height=64) {
+        if(this.map) {
+            this.map.removeAllLayers(); //destroy();
+            this.map.destroy();
+        }
         let map = this.make.tilemap({id: id, tileWidth: TILE_WIDTH, tileHeight: TILE_HEIGHT, width: width, height: height});
-
         let tileset = map.addTilesetImage('tiles', 'tiles', TILE_WIDTH, TILE_HEIGHT);
 
         map.setLayer(0);
@@ -280,7 +255,7 @@ export default class GameScene extends Phaser.Scene {
         itemMap.setLayer(2);
         let itemLayer = itemMap.createBlankDynamicLayer('items', itemTileset, 0,0);
         /* Add some random items */
-        for(let i = 0; i < 48; i++) {
+        /*for(let i = 0; i < 48; i++) {
             let id = ['2x4', 'stick', 'log', 'nail'][Phaser.Math.Between(0,3)];
             let item = new Item({name: id, id: id, x: Phaser.Math.Between(1,22), y: Phaser.Math.Between(1,22)});
             //console.log(item);
@@ -289,10 +264,12 @@ export default class GameScene extends Phaser.Scene {
             itemTile.properties = item;
 
             itemLayer.putTileAt(itemTile, item.x, item.y);
-        }
+        }*/
         this.layers.item = itemLayer;
         this.itemMap = itemMap;
-
+        this.physics.world.setBounds(0,0,this.layers.background.width, this.layers.background.height);
+        this.impact.world.setBounds(0,0,this.layers.background.width, this.layers.background.height);
+        this.cameras.main.setBounds(0,0, this.layers.background.width, this.layers.background.height)
     }
     setTile(data, updateConnections=false) {
         let item = data.item;
@@ -323,18 +300,6 @@ export default class GameScene extends Phaser.Scene {
                 } else {
                     fg = parseInt(fg, 10);
                 }
-                /*fg = fg[0];
-                if(fg.sprite) {
-                    fg = fg.sprite
-                }*/
-                /*fg = parseInt(randomWeightedChoice(fg.map(e => {
-                    if(e.sprite instanceof Array && e.sprite.length) {
-                       return e.sprite;//{...e, id: e.sprite[Math.floor(Math.random()*e.sprite.length)]};
-                    } else {
-                        return {...e, id: e.sprite};
-                    }
-
-                })), 10);*/
             }
             item.tile = fg;
         }
@@ -408,14 +373,28 @@ export default class GameScene extends Phaser.Scene {
         this.layers[data.layer].putTileAt(itemTile, data.x, data.y);
     }
     setMap(id, width, height, map) {
+        if(width !== this.map.width || height !== this.map.height) {
+            this.setupMap(0, width, height);
+            
+            this.player.sprite.destroy();
+
+            const sprite = this.impact.add.sprite(this.player.x, this.player.y, 'wormie');
+            sprite.setActive().setMaxVelocity(300, 300).setActiveCollision(true);
+            this.player.sprite = sprite;
+            sprite.scaleX = 2;
+            sprite.scaleY = 2;
+            sprite.setBodyScale(2, 2);
+            this.cameras.main.startFollow(sprite);
+        }
+        
+        this.entities.forEach(e => e.sprite.destroy());
+        this.entities = [];
+        this.entityGroup = [];
         this.layers.background.fill(-1, 0, 0, width, height);
         this.layers.structure.fill(-1, 0, 0, width, height);
         this.layers.item.fill(-1, 0, 0, width, height);
-        /*for(let y = 0; y<height; y++) {
-            for(let x = 0; x<width; x++) {
-                this.layers.background.putTileAt(map.ground[y][x], x, y);
-            }
-        }*/
+
+        
         let collisionMap = new Array(height).fill(0).map(() => new Array(width).fill(0));
         this.collisionMap = collisionMap;
         let ground = map.ground.map((r,y) => {
@@ -470,12 +449,16 @@ export default class GameScene extends Phaser.Scene {
                  }
             }, true)
         });
-        map.item.forEach(i => {
-            this.layers.item.putTileAt(TileResolver(i.id).fg, i.x, i.y);
+        console.log("itemssss", map.item);
+        map.item.forEach(item => {
+            let t = new Phaser.Tilemaps.Tile(this.layers.item, TileResolver(item.id).fg);
+            t.properties = item
+            this.layers.item.putTileAt(t, item.x, item.y);
         });
         this.collisionMap = collisionMap;
         //this.impact.world.setCollisionMapFromTilemapLayer(this.layers.structure, { defaultCollidingSlope: 1 });
         this.impact.world.setCollisionMap(this.collisionMap, TILE_WIDTH);
+        UI.uiContainer.setDepth(1);
     }
     buildItem(recipe, x, y) {
         const item_id = recipe.post_terrain;
@@ -577,6 +560,8 @@ export default class GameScene extends Phaser.Scene {
         ];
         this.keys.rotateKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
 
+        this.keys.travelKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.T);
+
     }
     handleInput() {
         const cursors = this.input.keyboard.createCursorKeys();
@@ -635,6 +620,8 @@ export default class GameScene extends Phaser.Scene {
         }
 
         sprite.setVelocity(0,0);
+        sprite.x = Math.round(sprite.x);
+        sprite.y = Math.round(sprite.y);
         if (cursors.left.isDown || this.keys.leftKey.isDown) {
             sprite.setVelocityX(-100);
             moved = true;
@@ -665,7 +652,8 @@ export default class GameScene extends Phaser.Scene {
                 this.stopBuilding();
                 UI.setState({
                     inventoryOpen: false,
-                    craftingOpen: false
+                    craftingOpen: false,
+                    dialogOpen: false
                 })
             }
         });
@@ -675,9 +663,18 @@ export default class GameScene extends Phaser.Scene {
             })
         }
         if(Phaser.Input.Keyboard.JustDown(this.keys.toggleDebug)) {
+            /*UI.createDialog('hello', [
+                {label: 'OK', onClick: () => {
+                    console.log("luangfaougb")
+                    UI.setState({dialogOpen:false})
+                }},
+                {label: 'Cancel',onClick: () => {
+                    UI.setState({dialogOpen:false})
+                }}
+            ])*/
             UI.setState({
-                debug: !UI.uiState.debug
-            })
+                debug: !UI.uiState.debug,
+            });
         }
         /* Rotate building or ghost building */
         if(Phaser.Input.Keyboard.JustDown(this.keys.rotateKey)) {
@@ -758,8 +755,28 @@ export default class GameScene extends Phaser.Scene {
             }
         }
 
+        if(Phaser.Input.Keyboard.JustDown(this.keys.travelKey) && !UI.uiState.dialogOpen) {
+            UI.createDialog('Travel to location', [
+                {label: 'Home', id: 'home', onClick: this.doTravel},
+                {label: 'Random', id: 'random', onClick: this.doTravel},
+                {label: 'School', id: 'school', onClick: this.doTravel},
+                {label: 'House', id: 'house', onClick: this.doTravel},
+                {label: 'Cancel', id: 'cancel', onClick: () => {
+                    UI.removeDialog();
+                }}
+            ]);
+            UI.setState({
+                dialogOpen: true
+            })
+        }
+
         if(moved) {
             Network.send(ACTIONS.ACTION_MOVE, {player: {x: Math.round(player.sprite.x), y: Math.round(player.sprite.y)}});
         }
+    }
+    doTravel(id) {
+        // travel
+        Network.send(ACTIONS.ACTION_TRAVEL, {dest: id});
+        UI.removeDialog();
     }
 }

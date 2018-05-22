@@ -15,18 +15,32 @@ const cors = require('cors');
 const app = express();
 const server = require('http').Server(app);
 const io = require('socket.io').listen(server);
+const glob = require('glob');
+const fs = require('fs');
 
+const itemData = {};
+
+function loadItemData() {
+    glob.sync('**/*.json', {cwd: __dirname +'//'+ '../data/json/items'}).forEach(filename => {
+        console.log("Loading item group: "+filename);
+        let items = JSON.parse(fs.readFileSync(__dirname +'//'+'../data/json/items/' + filename));
+        items.forEach(ig => {
+            itemData[ig.id] = ig;
+        })
+    });
+}
+loadItemData();
 app.use(cors());
-const itemData = require('../assets/ChestHoleTileset/tile_config.json');
+const tileData = require('../assets/ChestHoleTileset/tile_config.json');
 let lastInstanceId = 0;
 class Instance {
-    constructor(width=32, height=32) {
+    constructor(width=32, height=32, opts={}) {
         this.id = lastInstanceId++;
         let basemap = new Array(height).fill(0).map(_ => new Array(width).fill(-1));
         basemap = basemap.map(gy => gy.map(t => getRandomInt(0,9)===0?{id:'t_dirt'}:{id:'t_grass'}));
         // direction can be 0,90,180,270 degrees rotation
-        let pf = new Prefab({basemap: basemap, direction: 0, offsetx: 0, offsety: 0});
-        this.map = { width, height, ground:pf.ground, structure: pf.structure, item: pf.item};
+        let pf = new Prefab({basemap: basemap, direction: 0, offsetx: 0, offsety: 0, mapfilename: opts.mapfilename||null});
+        this.map = { width: pf.width, height: pf.height, ground:pf.ground, structure: pf.structure, item: pf.item};
         this.created = new Date();
     }
     getMap() {
@@ -44,7 +58,7 @@ instances[defaultInstance.id] = defaultInstance;
 const Between = getRandomInt;
 
 let itemMap = {};
-itemData['tiles-new'][0]['tiles'].forEach(t => {
+tileData['tiles-new'][0]['tiles'].forEach(t => {
     if(t.id instanceof Array) {
         t.id.forEach(id => {
             itemMap[id] = t;
@@ -115,6 +129,7 @@ io.on('connection', (socket) => {
         socket.broadcast.emit(ACTIONS.ACTION_MOVE, msg);
     })
     .on(ACTIONS.ACTION_OPEN, (msg) => {
+        let map = instances[socket.player.instance].getMap();
         let i = TerrainData[map.ground[msg.y][msg.x].id];
         console.log(i);
         if(i && i.open) {
@@ -135,6 +150,7 @@ io.on('connection', (socket) => {
 
     })
     .on(ACTIONS.ACTION_CLOSE, (msg) => {
+        let map = instances[socket.player.instance].getMap();
         let t = map.ground[msg.y][msg.x];
         if(!t) {
             return;
@@ -157,15 +173,43 @@ io.on('connection', (socket) => {
             });
         }
 
+    })
+    .on(ACTIONS.ACTION_TRAVEL, (msg) => {
+        console.log("asgag", msg);
+        if(msg.dest === 'home') {
+            socket.player.instance = defaultInstance.id;
+
+        } else if(msg.dest === 'school') {
+            let newInstance = new Instance(64, 64, {mapfilename: 'school_1.json'});
+            instances[newInstance.id] = newInstance;
+            socket.player.instance = newInstance.id;            
+        } else if(msg.dest === 'house') {
+            let newInstance = new Instance(64, 64, {mapfilename: 'house/house05.json'});
+            instances[newInstance.id] = newInstance;
+            socket.player.instance = newInstance.id;            
+        } else if(msg.dest === 'random') {
+            let newInstance = new Instance(64, 64);
+            instances[newInstance.id] = newInstance;
+            socket.player.instance = newInstance.id;
+        }
+        let map = instances[socket.player.instance].getMap();
+        socket.emit('map', {
+            id: instances[socket.player.instance].id,
+            width: map.width,
+            height: map.height,
+            map: map
+        })
     });
 
     socket.on('fire', (msg) => {
+        msg.instance = socket.player.instance;
         msg.source.x = socket.player.x;
         msg.source.y = socket.player.y;
         socket.emit('projectile',msg);
         socket.broadcast.emit('projectile', msg);
     })
     socket.on('build', (msg) => {
+        let map = instances[socket.player.instance].getMap();
         const player = socket.player;
         if(!msg.player) {
             msg.player = {id: socket.player.id}
@@ -211,15 +255,17 @@ io.on('connection', (socket) => {
             socket.emit('action_error', {command: 'build', msg: 'Could not build. Missing components'});
         }
     }).on('pickup', (msg) => {
+        let map = instances[socket.player.instance].getMap();
         if(!msg.player) {
             msg.player = {id: socket.player.id};
         }
+        console.log("pickup", msg);
         let i = map.item.findIndex(i => i.x === msg.x && i.y === msg.y);
         if(i>=0) {
             let item = map.item.splice(i, 1)[0];
             socket.player.inventory.push(item);
-            socket.broadcast.emit('setTile', {layer: 'item', item: { x: msg.x, y:msg.y, tile: -1}});
-            socket.emit('setTile', {layer: 'item', item: {x: msg.x, y:msg.y, id: -1}});
+            socket.broadcast.emit('setTile', {layer: 'item', x: msg.x, y:msg.y, item: { id: -1 }});
+            socket.emit('setTile', {layer: 'item', x: msg.x, y:msg.y, item: {id: -1}});
             socket.emit('inventory', {type:'push', item: item});
         }
     })

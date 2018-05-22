@@ -13,10 +13,13 @@ class UI {
         this.actionEmitter = new Phaser.EventEmitter();
     }
     create(args) {
+        
         this.game = args.game;
+        let uiContainer = this.game.add.container();
         this.layers = args.layers;
         this.hpText = this.game.add.text(10, 10, 'HP: 0', { font: "20px Arial", fill: "#ffffff", align: "left" });
         this.hpText.setScrollFactor(0,0);
+        uiContainer.add(this.hpText);
 
         this.inventoryContainer = this.game.add.container(0, 64);
         this.inventoryContainer.fixedToCamera = true;
@@ -36,7 +39,7 @@ class UI {
         this.inventoryContainer.add(this.game.add.text(0, 0, 'Inventory', {align: 'center'}));
         this.inventoryContainer.add(itemBoxes);
 
-
+        uiContainer.add(this.inventoryContainer);
         this.craftingContainer = this.game.add.container(this.game.cameras.main.width - 100, 64);
         this.craftingContainer.fixedToCamera = true;
         this.craftingContainer.setScrollFactor(0,0);
@@ -52,10 +55,11 @@ class UI {
         this.craftBoxes = craftBoxes;
         this.craftingContainer.add(craftBoxes);
 
-
+        uiContainer.add(this.craftingContainer);
         this.buildingText = this.game.add.text(380, 400, 'Building', {align: 'center'});
         this.buildingText.setScrollFactor(0,0);
-
+        uiContainer.add(this.buildingText);
+        
         this.errorText = this.game.add.text(380, 480, 'Error', {align: 'center', fill: '#cc0000'}).setFontStyle('bold').setBackgroundColor('#000000af');
         this.errorText.setScrollFactor(0,0);
         this.errorTextTween = this.game.tweens.add({
@@ -63,6 +67,7 @@ class UI {
             alpha: 0,
             delay: 1000
         });
+        uiContainer.add(this.errorText);
         /*this.game.input.on('gameobjectdown', function (pointer, gameObject) {
             console.log("afaf", pointer, gameObject);
         }, this);
@@ -74,6 +79,62 @@ class UI {
         this.debugText = this.game.add.text(0, 0, '', {font: '12px monospace', fill: '#ffffff'}).setBackgroundColor('#000000af');
         this.debugText.setScrollFactor(0,0);
         this.debugText.visible = false;
+        uiContainer.add(this.debugText);
+        this.dialog = this.game.add.container(200, 200);
+        this.dialog.width = 200;
+        this.dialog.height = 200;
+        this.dialog.fixedToCamera = true;
+        this.dialog.setScrollFactor(0,0);
+        this.dialog.visible = false;
+        uiContainer.add(this.dialog);
+        this.uiContainer = uiContainer;
+        
+    }
+    createDialog(text, buttons, opts={}) {
+        this.dialog.removeAll(true);
+        if(!text || !buttons || !buttons.length) {
+            return;
+        }
+        let width = this.dialog.width;
+        let height = 24 + buttons.length * 32 + 24;
+
+        let dialogBackground = this.game.make.graphics().fillStyle(0x0000dd, 0.5).fillRect(0, 0, width, height);
+        this.dialog.add(dialogBackground);
+        let dialogText = this.game.add.text(0, 0, text);
+        this.dialog.add(dialogText);
+        let y = 32;
+        buttons.map(b => {
+            let btn = this.game.make.graphics().fillStyle(0xff0000).fillRect(12, y, this.dialog.width - 24, 24);
+            btn.setInteractive(new Phaser.Geom.Rectangle(12, y, this.dialog.width-24, 24), Phaser.Geom.Rectangle.Contains);
+            let yScoped = y;
+            let btnText = this.game.add.text(16, y, b.label);
+            btn.on('pointerover', () => {
+                console.log("hello")
+                btn.fillStyle(0x44ff44).fillRect(12, yScoped, this.dialog.width - 24, 24);
+                btnText.setColor('0x000');
+            });
+        
+            btn.on('pointerout', () => {
+                btn.fillStyle(0xff0000).fillRect(12, yScoped, this.dialog.width - 24, 24);
+                btnText.setColor('0xfff');
+            });
+
+            btn.on('pointerdown', () => {
+                if(b.onClick != null) {
+                    b.onClick(b.id);
+                }
+            });
+            btn.setScrollFactor(0,0);
+            y += 32;
+            this.dialog.add([btn,btnText]);
+        });
+        this.dialog.bringToTop();
+        this.dialog.visible = true;
+    }
+    removeDialog() {
+        this.dialog.removeAll(true);
+        this.dialog.visible = false;
+        this.uiState.dialogOpen = false;
     }
     updateInventory(inv) {
         /* Updates the item sprites for the inventory display */
@@ -141,7 +202,9 @@ class UI {
                 []
             );*/
             let comps = cr.components;
-
+            if(!comps) {
+                return null;
+            }
             const hasComponents = comps.filter(r => {
                 return r.filter(component => inv.has(component[0], component[1])).length>0
             }).length==comps.length;
@@ -255,6 +318,11 @@ class UI {
             }
         } else {
             this.debugText.visible = false;
+        }
+        if(this.uiState.dialogOpen) {
+            this.dialog.visible = true;
+        } else {
+            this.dialog.visible = false;
         }
     }
     setState(args) {

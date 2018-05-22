@@ -1,5 +1,6 @@
 {
     "ACTION_MOVE": "move",
     "ACTION_OPEN": "open",
-    "ACTION_CLOSE": "close"
+    "ACTION_CLOSE": "close",
+    "ACTION_TRAVEL": "travel"
 }
