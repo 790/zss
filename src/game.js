@@ -321,9 +321,6 @@ export default class GameScene extends Phaser.Scene {
 
             // populate connection information
             for (let i = 0; i < 4; ++i) {
-                if(neighborhood[i] && neighborhood[i].properties.id === 't_window_domestic') {
-                    console.log("oagnbaog")
-                }
                 let d = item.id.indexOf('t_') === 0 ? TerrainData : FurnitureData;
                 connects[i] = (
                     (neighborhood[i] && d[item.id] && d[neighborhood[i].properties.id])
@@ -344,9 +341,6 @@ export default class GameScene extends Phaser.Scene {
                     ++num_connects;
                     val += 1 << i;
                 }
-            }
-            if(x === 19 && y === 5) {
-                console.log("yayaya", item, neighborhood, num_connects, val);
             }
             let rotationData = GetTileRotation(val, num_connects);
             if(rotationData.subtile) {
