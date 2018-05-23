@@ -183,6 +183,14 @@ io.on('connection', (socket) => {
             let newInstance = new Instance(64, 64, {mapfilename: 'school_1.json'});
             instances[newInstance.id] = newInstance;
             socket.player.instance = newInstance.id;
+        } else if(msg.dest === 'bank') {
+            let newInstance = new Instance(64, 64, {mapfilename: 'bank.json'});
+            instances[newInstance.id] = newInstance;
+            socket.player.instance = newInstance.id;
+        } else if(msg.dest === 'shelter') {
+            let newInstance = new Instance(64, 64, {mapfilename: 'shelter.json'});
+            instances[newInstance.id] = newInstance;
+            socket.player.instance = newInstance.id;
         } else if(msg.dest === 'house') {
             let newInstance = new Instance(64, 64, {mapfilename: 'house/house05.json'});
             instances[newInstance.id] = newInstance;

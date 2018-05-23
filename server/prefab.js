@@ -42,6 +42,19 @@ function loadItemData() {
 }
 loadItemData();
 
+const mapgenPalettes = {};
+function loadMapgenPalettes() {
+    glob.sync('**/*.json', {cwd: __dirname +'//'+ '../data/json/mapgen_palettes'}).forEach(filename => {
+        console.log("Loading mapgen palette: "+filename);
+        let items = JSON.parse(fs.readFileSync(__dirname +'//'+'../data/json/mapgen_palettes/' + filename));
+        items.forEach(ig => {
+            mapgenPalettes[ig.id] = ig;
+        })
+    });
+}
+loadMapgenPalettes();
+
+
 class Prefab {
     constructor(args) {
         let basemap = args.basemap||[];
@@ -62,6 +75,8 @@ class Prefab {
         mapData = this.getMapDataByName(mapfilename);
         console.log("Attempting to load " + mapfilename);
         let foundPrefab = this.getMapDataPrefab(mapData);
+
+        console.log(foundPrefab)
         if(foundPrefab === -1) {
             console.log("fuckknows why foundPrefab is -1");
             process.exit(1);
@@ -71,10 +86,18 @@ class Prefab {
                 h = obj.rows.length,
                 structures = [],
                 newx, newy, x, y;
-                
+
         if(basemap[0].length < w || basemap.length < h) {
             basemap = new Array(h).fill(0).map(_ => new Array(w).fill(-1));
             basemap = basemap.map(gy => gy.map(t => this.gri(0,9)===0?{id:'t_dirt'}:{id:'t_grass'}));
+        }
+
+        if(obj.palettes) {
+            if(obj.palettes instanceof Array) {
+                obj.palettes.forEach(paletteName => {
+                    obj = {...mapgenPalettes[paletteName], ...obj};
+                });
+            }
         }
         console.log(w, h, basemap.length, basemap[0].length);
         for(y=0;y<obj.rows.length;y++) {
@@ -147,6 +170,31 @@ class Prefab {
             }).filter(item => !!item)
             
         }
+        if(obj.place_items) {
+            items = items.concat(obj.place_items.filter(item => this.gri(0, 100) < item.chance).map(item => {
+                let item_id = getItemFromGroup(item.item);
+                if(!item_id) {
+                     console.log(item.item, item_id);
+                }
+                if(!item_id) {
+                    return null;
+                }
+                let x = item.x;
+                let y = item.y;
+                if(item.x instanceof Array) {
+                    x = this.gri(item.x[0], item.x[1]);
+                }
+                if(item.y instanceof Array) {
+                    y = this.gri(item.y[0], item.y[1]);
+                }
+                return {
+                    id: item_id,
+                    item: itemData[item_id],
+                    x: x,
+                    y: y
+                }
+            }).filter(item => !!item));
+        }
         return {ground: basemap, width: basemap[0].length, height: basemap.length, structure: structures, item: items};
     }
     gri(min,max) {
@@ -185,6 +233,7 @@ class Prefab {
         return mapData;
     }
     getMapDataPrefab(mapData){
+        
         let prefabs = mapData.map(o => o.mapgen?{...o.mapgen[0], type:'mapgen'}:o).filter(o => o.type === 'mapgen' && o.object != null && !o.nested_mapgen_id);
         return prefabs[this.gri(0, prefabs.length-1)];
     }

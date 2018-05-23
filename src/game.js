@@ -284,6 +284,7 @@ export default class GameScene extends Phaser.Scene {
         if(item.id === -1) {
             this.layers[data.layer].removeTileAt(data.x, data.y);
             this.collisionMap[data.y][data.x] = 0;
+            return;
         } else {
             tileData = TileResolver(item.id);
             let fg = tileData.fg;
@@ -328,7 +329,9 @@ export default class GameScene extends Phaser.Scene {
                     (neighborhood[i] && d[item.id] && d[neighborhood[i].properties.id])
                     &&
                     (
-                        (neighborhood[i].properties.id === item.id || d[neighborhood[i].properties.id].connects_to === d[item.id].connects_to)
+                        (neighborhood[i].properties.id === item.id)
+                    ||  
+                        (d[item.id].connects_to && d[neighborhood[i].properties.id].connects_to === d[item.id].connects_to)
                     ||
                         (d[neighborhood[i].properties.id].flags.indexOf('CONNECT_TO_WALL')>-1 && d[item.id].flags.indexOf('WALL')>-1)
                     )
@@ -342,7 +345,9 @@ export default class GameScene extends Phaser.Scene {
                     val += 1 << i;
                 }
             }
-
+            if(x === 19 && y === 5) {
+                console.log("yayaya", item, neighborhood, num_connects, val);
+            }
             let rotationData = GetTileRotation(val, num_connects);
             if(rotationData.subtile) {
 
@@ -858,6 +863,8 @@ export default class GameScene extends Phaser.Scene {
                 {label: 'Home', id: 'home', onClick: this.doTravel},
                 {label: 'Random', id: 'random', onClick: this.doTravel},
                 {label: 'School', id: 'school', onClick: this.doTravel},
+                {label: 'Bank', id: 'bank', onClick: this.doTravel},
+                {label: 'Shelter', id: 'shelter', onClick: this.doTravel},
                 {label: 'House', id: 'house', onClick: this.doTravel},
                 {label: 'Cancel', id: 'cancel', onClick: () => {
                     UI.removeDialog();
