@@ -331,6 +331,8 @@ export default class GameScene extends Phaser.Scene {
                         (d[item.id].connects_to && d[neighborhood[i].properties.id].connects_to === d[item.id].connects_to)
                     ||
                         (d[neighborhood[i].properties.id].flags.indexOf('CONNECT_TO_WALL')>-1 && d[item.id].flags.indexOf('WALL')>-1)
+                    ||
+                        (0 && d[neighborhood[i].properties.id].flags.indexOf('WALL')>-1 && d[item.id].flags.indexOf('WALL')>-1)
                     )
                 );
                 /*if((neighborhood[i] && d[item.id] && d[neighborhood[i].properties.id])
@@ -343,24 +345,35 @@ export default class GameScene extends Phaser.Scene {
                 }
             }
             let rotationData = GetTileRotation(val, num_connects);
+            if(x === 14 && y === 1) {
+                console.log(item, tileData, rotationData, val, num_connects)
+            }
             if(rotationData.subtile) {
 
                 let at = tileData.additional_tiles.find(at => at.id === rotationData.subtile);
 
                 if(at) {
-                    if(at.fg[rotationData.rotation]!=null) {
+                    if(at.fg instanceof Array && at.fg[rotationData.rotation]!=null) {
                         item.tile = at.fg[rotationData.rotation];
                     } else if(rotationData.rotation) {
                         item.tile = at.fg;
                         item.angle = rotationData.rotation*-90;
                     } else {
                         item.tile = at.fg;
+                        item.angle = 0;
                     }
 
                 } else {
                     if(item.tile && item.tile.length) {
                         item.tile = item.tile[rotationData.rotation];
-                    }
+                        item.angle = 0;
+                    } else {
+                        if(tileData.rotates) {
+                            //item.angle = 90;    
+                        } else {
+                            item.angle = 0;
+                        }
+                    } 
                 }
             }
         } else {
@@ -489,9 +502,6 @@ export default class GameScene extends Phaser.Scene {
                         } else {
                             fg = parseInt(fg, 10);
                         }
-                    }
-                    if(t.id === 't_wall') {
-                        console.log(fg);
                     }
                     if(fg.sprite) {
                         if(fg.sprite.length) {
