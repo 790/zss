@@ -137,13 +137,13 @@ io.on('connection', (socket) => {
             socket.emit('setTile', {
                 x: msg.x,
                 y: msg.y,
-                layer: 'structure',
+                layer: 'foreground',
                 item: {id: i.open}
             });
             socket.broadcast.emit('setTile', {
                 x: msg.x,
                 y: msg.y,
-                layer: 'structure',
+                layer: 'foreground',
                 item: {id: i.open}
             });
         }
@@ -162,13 +162,13 @@ io.on('connection', (socket) => {
             socket.emit('setTile', {
                 x: msg.x,
                 y: msg.y,
-                layer: 'structure',
+                layer: 'foreground',
                 item: {id: i.close}
             });
             socket.broadcast.emit('setTile', {
                 x: msg.x,
                 y: msg.y,
-                layer: 'structure',
+                layer: 'foreground',
                 item: {id: i.close}
             });
         }
@@ -182,11 +182,11 @@ io.on('connection', (socket) => {
         } else if(msg.dest === 'school') {
             let newInstance = new Instance(64, 64, {mapfilename: 'school_1.json'});
             instances[newInstance.id] = newInstance;
-            socket.player.instance = newInstance.id;            
+            socket.player.instance = newInstance.id;
         } else if(msg.dest === 'house') {
             let newInstance = new Instance(64, 64, {mapfilename: 'house/house05.json'});
             instances[newInstance.id] = newInstance;
-            socket.player.instance = newInstance.id;            
+            socket.player.instance = newInstance.id;
         } else if(msg.dest === 'random') {
             let newInstance = new Instance(64, 64);
             instances[newInstance.id] = newInstance;

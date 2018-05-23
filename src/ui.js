@@ -13,7 +13,7 @@ class UI {
         this.actionEmitter = new Phaser.EventEmitter();
     }
     create(args) {
-        
+
         this.game = args.game;
         let uiContainer = this.game.add.container();
         this.layers = args.layers;
@@ -59,7 +59,7 @@ class UI {
         this.buildingText = this.game.add.text(380, 400, 'Building', {align: 'center'});
         this.buildingText.setScrollFactor(0,0);
         uiContainer.add(this.buildingText);
-        
+
         this.errorText = this.game.add.text(380, 480, 'Error', {align: 'center', fill: '#cc0000'}).setFontStyle('bold').setBackgroundColor('#000000af');
         this.errorText.setScrollFactor(0,0);
         this.errorTextTween = this.game.tweens.add({
@@ -88,7 +88,7 @@ class UI {
         this.dialog.visible = false;
         uiContainer.add(this.dialog);
         this.uiContainer = uiContainer;
-        
+
     }
     createDialog(text, buttons, opts={}) {
         this.dialog.removeAll(true);
@@ -113,7 +113,7 @@ class UI {
                 btn.fillStyle(0x44ff44).fillRect(12, yScoped, this.dialog.width - 24, 24);
                 btnText.setColor('0x000');
             });
-        
+
             btn.on('pointerout', () => {
                 btn.fillStyle(0xff0000).fillRect(12, yScoped, this.dialog.width - 24, 24);
                 btnText.setColor('0xfff');
@@ -293,7 +293,7 @@ class UI {
         }
         if(this.uiState.debug) {
             const worldPoint = this.game.input.activePointer.positionToCamera(this.game.cameras.main);
-            const layers = ['background','structure','item'];
+            const layers = ['background','foreground', 'structure','item'];
             let tiles = {};
             const pointerTileX = data.layers['background'].worldToTileX(worldPoint.x);
             const pointerTileY = data.layers['background'].worldToTileY(worldPoint.y);
